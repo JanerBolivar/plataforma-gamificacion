@@ -39,6 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateAvatarModel = async (model: 'female' | 'man') => {
+    await authService.updateAvatar(model);
+    setUser((prev) => (prev ? { ...prev, avatarModel: model } : null));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -47,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithMicrosoft,
         logout,
         refreshUser,
+        updateAvatarModel,
       }}
     >
       {children}

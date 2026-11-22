@@ -1,5 +1,6 @@
 export type Role = 'ADMIN' | 'TEACHER' | 'STUDENT';
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
+export type AvatarModel = 'female' | 'man';
 
 export interface User {
   id: string;
@@ -9,6 +10,7 @@ export interface User {
   lastName: string;
   role: Role;
   status: UserStatus;
+  avatarModel?: AvatarModel;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,4 +21,5 @@ export interface AuthContextType {
   loginWithMicrosoft: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateAvatarModel: (model: AvatarModel) => Promise<void>;
 }

@@ -103,6 +103,39 @@ export const GamePage: React.FC = () => {
     }
   }, []);
 
+  // Intentar ingresar a pantalla completa automaticamente al cargar o interactuar con la pagina
+  useEffect(() => {
+    const enterFullscreen = () => {
+      if (!document.fullscreenElement) {
+        const elem = gameRootRef.current || document.documentElement;
+        elem
+          .requestFullscreen()
+          .then(() => setIsFullscreen(true))
+          .catch(() => {});
+      }
+    };
+
+    // Intentar directamente solo si la navegacion provino de un gesto de usuario activo
+    if ((navigator as any).userActivation?.hasBeenActive) {
+      enterFullscreen();
+    }
+
+    // Listener de respaldo para cualquier primer clic o pulsacion de tecla en la ventana
+    const handleFirstUserInteraction = () => {
+      enterFullscreen();
+      window.removeEventListener('click', handleFirstUserInteraction, true);
+      window.removeEventListener('keydown', handleFirstUserInteraction, true);
+    };
+
+    window.addEventListener('click', handleFirstUserInteraction, true);
+    window.addEventListener('keydown', handleFirstUserInteraction, true);
+
+    return () => {
+      window.removeEventListener('click', handleFirstUserInteraction, true);
+      window.removeEventListener('keydown', handleFirstUserInteraction, true);
+    };
+  }, []);
+
   // Cargar datos de la partida
   useEffect(() => {
     if (!matchId) return;
@@ -534,7 +567,16 @@ export const GamePage: React.FC = () => {
       className="fixed inset-0 w-screen h-screen overflow-hidden bg-slate-950 select-none z-50"
     >
       {/* Contenedor del lienzo WebGL de Three.js ocupando el 100% absoluto de la pantalla */}
-      <div ref={canvasContainerRef} className="w-full h-full cursor-crosshair" />
+      <div
+        ref={canvasContainerRef}
+        className="w-full h-full cursor-crosshair"
+        onClick={() => {
+          if (!document.fullscreenElement) {
+            const elem = gameRootRef.current || document.documentElement;
+            elem.requestFullscreen().catch(() => {});
+          }
+        }}
+      />
 
       {/* Notificaciones Sonner montadas dentro del contenedor de pantalla completa */}
       <Toaster position="top-right" richColors />

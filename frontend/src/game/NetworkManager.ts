@@ -6,6 +6,7 @@ export interface RemotePlayerState {
   teamId: string;
   teamName: string;
   teamColor: string;
+  avatarModel?: string;
   x: number;
   y: number;
   z: number;
@@ -123,6 +124,7 @@ export class NetworkManager {
         teamId: player.teamId,
         teamName: player.teamName,
         teamColor: player.teamColor,
+        avatarModel: player.avatarModel || 'female',
         x: player.x,
         y: player.y,
         z: player.z,

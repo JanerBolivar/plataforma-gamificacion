@@ -7,6 +7,7 @@ const router = Router();
 router.get('/microsoft', AuthController.redirectToMicrosoft);
 router.get('/microsoft/callback', AuthController.handleCallback);
 router.get('/me', authenticate, AuthController.getCurrentUser);
+router.patch('/avatar', authenticate, AuthController.updateAvatar);
 router.post('/logout', AuthController.logout);
 
 export default router;

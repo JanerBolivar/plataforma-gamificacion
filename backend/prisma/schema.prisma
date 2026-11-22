@@ -39,6 +39,11 @@ enum CollectibleType {
   TIBURON_ROJO
 }
 
+enum AvatarGender {
+  FEMALE
+  MALE
+}
+
 model User {
   id                   String            @id @default(uuid())
   microsoftId          String            @unique
@@ -47,6 +52,7 @@ model User {
   lastName             String
   role                 Role              @default(STUDENT)
   status               UserStatus        @default(PENDING)
+  avatarGender         AvatarGender      @default(FEMALE)
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 

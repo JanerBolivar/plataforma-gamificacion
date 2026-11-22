@@ -29,6 +29,17 @@ export const authService = {
   async logout(): Promise<void> {
     await apiClient.post('/api/auth/logout');
   },
+
+  /**
+   * Actualiza el modelo de cuerpo del avatar del usuario.
+   */
+  async updateAvatar(avatarModel: 'female' | 'man'): Promise<{ avatarModel: 'female' | 'man' }> {
+    const response = await apiClient.patch<{ status: string; data: { avatarModel: 'female' | 'man' } }>(
+      '/api/auth/avatar',
+      { avatarModel }
+    );
+    return response.data.data;
+  },
 };
 
 export const userService = {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service.js';
+import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 
 /**
@@ -54,15 +55,72 @@ export class AuthController {
   /**
    * Retorna la informacion del perfil del usuario actualmente autenticado mediante cookie.
    */
-  public static getCurrentUser(req: Request, res: Response): void {
+  public static async getCurrentUser(req: Request, res: Response): Promise<void> {
     if (!req.user) {
       res.status(401).json({ status: 'error', message: 'No autenticado.' });
       return;
     }
-    res.status(200).json({
-      status: 'ok',
-      data: req.user,
-    });
+
+    try {
+      // Consultar avatarModel almacenado
+      const rows = (await prisma.$queryRawUnsafe(
+        'SELECT "avatarModel" FROM "User" WHERE id = $1 LIMIT 1',
+        req.user.id
+      ).catch(() => [])) as Array<{ avatarModel: string }>;
+
+      const avatarModel = rows[0]?.avatarModel || 'female';
+
+      res.status(200).json({
+        status: 'ok',
+        data: {
+          ...req.user,
+          avatarModel,
+        },
+      });
+    } catch {
+      res.status(200).json({
+        status: 'ok',
+        data: {
+          ...req.user,
+          avatarModel: 'female',
+        },
+      });
+    }
+  }
+
+  /**
+   * Actualiza la preferencia del modelo de avatar para el usuario en sesion.
+   */
+  public static async updateAvatar(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      res.status(401).json({ status: 'error', message: 'No autenticado.' });
+      return;
+    }
+
+    const { avatarModel } = req.body;
+    const model = avatarModel === 'man' ? 'man' : 'female';
+
+    try {
+      // Asegurar columna avatarModel en caso de que no exista aun en la base de datos
+      await prisma.$executeRawUnsafe(
+        'ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarModel" TEXT DEFAULT \'female\';'
+      ).catch(() => {});
+
+      await prisma.$executeRawUnsafe(
+        'UPDATE "User" SET "avatarModel" = $1 WHERE id = $2;',
+        model,
+        req.user.id
+      );
+
+      res.status(200).json({
+        status: 'ok',
+        message: 'Preferencia de avatar actualizada correctamente.',
+        data: { avatarModel: model },
+      });
+    } catch (err: unknown) {
+      console.error('[ERROR] Error al guardar preferencia de avatar:', err);
+      res.status(500).json({ status: 'error', message: 'No se pudo guardar la preferencia de avatar.' });
+    }
   }
 
   /**

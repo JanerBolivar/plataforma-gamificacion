@@ -31,6 +31,7 @@ interface AuthContext {
     name: string;
     score: number;
   };
+  avatarModel?: string;
 }
 
 /**
@@ -205,14 +206,29 @@ export class SwampRoom extends Room<{ state: SwampState }> {
       });
     }
 
+    // Consultar preferencia de avatar si existe en la base de datos
+    let avatarModel = 'female';
+    try {
+      const rows = (await prisma.$queryRawUnsafe(
+        'SELECT "avatarModel" FROM "User" WHERE id = $1 LIMIT 1',
+        userId
+      ).catch(() => [])) as Array<{ avatarModel: string }>;
+      if (rows[0]?.avatarModel === 'man') {
+        avatarModel = 'man';
+      }
+    } catch {
+      avatarModel = 'female';
+    }
+
     console.log(
-      `[INFO] Usuario autenticado exitosamente en SwampRoom: ${participant.user.firstName} ${participant.user.lastName} (Equipo: ${participant.team!.name})`
+      `[INFO] Usuario autenticado exitosamente en SwampRoom: ${participant.user.firstName} ${participant.user.lastName} (Equipo: ${participant.team!.name}, Avatar: ${avatarModel})`
     );
 
     return {
       userId,
       user: participant.user,
       team: participant.team!,
+      avatarModel,
     };
   }
 
@@ -428,6 +444,7 @@ export class SwampRoom extends Room<{ state: SwampState }> {
 
     const teamState = this.state.teams.get(auth.team.id);
     player.teamColor = teamState?.color || '#3b82f6';
+    player.avatarModel = auth.avatarModel || 'female';
     player.x = 12.5;
     player.y = 3.9;
     player.z = 90;

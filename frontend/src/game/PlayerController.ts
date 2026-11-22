@@ -175,7 +175,14 @@ export class PlayerController {
       this.audioManager?.resume();
       // Solo solicitar pointer lock si el editor de mapa y el menu no estan abiertos
       if (!this.isLocked && !this.isEditorActive && !this.isMenuOpen) {
-        this.domElement.requestPointerLock();
+        try {
+          const res = this.domElement.requestPointerLock() as any;
+          if (res && typeof res.catch === 'function') {
+            res.catch(() => {});
+          }
+        } catch {
+          // Ignorar rechazo si el contexto del navegador no permite pointer lock en este ciclo
+        }
       }
     });
   }

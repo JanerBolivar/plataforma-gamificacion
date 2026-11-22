@@ -9,6 +9,7 @@ export class PlayerSchema extends Schema {
   @type('string') teamId: string = '';
   @type('string') teamName: string = '';
   @type('string') teamColor: string = '#3b82f6';
+  @type('string') avatarModel: string = 'female';
   @type('number') x: number = 0;
   @type('number') y: number = 0;
   @type('number') z: number = 0;
