@@ -169,6 +169,17 @@ export class MatchController {
     }
   }
 
+  public static async getMatchCollectibles(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const collectibles = await MatchService.getMatchCollectibles(id);
+      res.status(200).json({ status: 'ok', data: collectibles });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al consultar los coleccionables de la partida';
+      res.status(404).json({ status: 'error', message });
+    }
+  }
+
   public static async startMatch(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;

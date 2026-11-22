@@ -454,6 +454,30 @@ export class PlayerController {
     return this.position.clone();
   }
 
+  public getYaw(): number {
+    return this.yaw;
+  }
+
+  public getAnimationState(): 'idle' | 'walk' | 'run' | 'jump' {
+    if (!this.isGrounded) {
+      return 'jump';
+    }
+    const isMoving =
+      this.keys.KeyW ||
+      this.keys.KeyS ||
+      this.keys.KeyA ||
+      this.keys.KeyD ||
+      this.keys.ArrowUp ||
+      this.keys.ArrowDown ||
+      this.keys.ArrowLeft ||
+      this.keys.ArrowRight;
+
+    if (!isMoving) {
+      return 'idle';
+    }
+    return this.isRunning ? 'run' : 'walk';
+  }
+
   public setPosition(pos: THREE.Vector3): void {
     this.position.copy(pos);
     this.syncCapsuleToPosition();

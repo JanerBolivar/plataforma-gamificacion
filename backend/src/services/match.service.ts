@@ -1,6 +1,8 @@
 import { prisma } from '../config/prisma.js';
-import { MatchStatus, InvitationStatus, Role } from '@prisma/client';
+import { MatchStatus, InvitationStatus, Role, CollectibleType } from '@prisma/client';
 import { CreateMatchInput, CreateTeamInput, RespondInvitationInput } from '../models/match.model.js';
+import { PANTANO_MAP_CONFIG } from '../config/map-zones.js';
+import { SwampRoom } from '../game/SwampRoom.js';
 
 /**
  * Servicio encargado de la logica de negocio para partidas, equipos e invitaciones.
@@ -668,7 +670,7 @@ export class MatchService {
   }
 
   /**
-   * Inicia la partida ejecutando la transaccion de limpieza y paso a IN_PROGRESS.
+   * Inicia la partida ejecutando la transaccion de limpieza, generacion de coleccionables y paso a IN_PROGRESS.
    */
   public static async startMatch(matchId: string, userId: string, userRole: Role) {
     const match = await this.validateMatchManagementPermission(matchId, userId, userRole);
@@ -683,8 +685,61 @@ export class MatchService {
     });
 
     const teamsWithMembers = teams.filter((t) => t.members.length > 0);
-    if (teamsWithMembers.length === 0) {
-      throw new Error('Debe existir al menos un equipo con integrantes para iniciar la partida.');
+    if (teamsWithMembers.length < 2 || teamsWithMembers.length > 6) {
+      throw new Error('Se requieren entre 2 y 6 equipos con integrantes para iniciar la partida.');
+    }
+
+    const N = teamsWithMembers.length;
+    const collectibleTypes: CollectibleType[] = [
+      CollectibleType.ADIVINALO,
+      CollectibleType.CARTA_PREGUNTA,
+      CollectibleType.TIBURON_AZUL,
+      CollectibleType.TIBURON_ROJO,
+    ];
+
+    const generatedPositions: Array<{ posX: number; posZ: number; type: CollectibleType }> = [];
+    const { bounds, exclusionZones, minDistanceBetweenItems, maxSpawnRetries } = PANTANO_MAP_CONFIG;
+
+    for (const type of collectibleTypes) {
+      for (let i = 0; i < N; i++) {
+        let placed = false;
+        let attempts = 0;
+
+        while (!placed && attempts < maxSpawnRetries) {
+          attempts++;
+
+          // Generar coordenadas aleatorias uniformes dentro de los limites de la isla
+          const posX = Number((Math.random() * (bounds.maxX - bounds.minX) + bounds.minX).toFixed(2));
+          const posZ = Number((Math.random() * (bounds.maxZ - bounds.minZ) + bounds.minZ).toFixed(2));
+
+          // 1. Validar que no este dentro de ninguna zona de exclusion
+          const inExclusionZone = exclusionZones.some((zone) => {
+            const dist = Math.hypot(posX - zone.centerX, posZ - zone.centerZ);
+            return dist < zone.radius;
+          });
+
+          if (inExclusionZone) {
+            continue;
+          }
+
+          // 2. Validar distancia minima respecto a coleccionables previamente ubicados
+          const tooCloseToOther = generatedPositions.some((item) => {
+            const dist = Math.hypot(posX - item.posX, posZ - item.posZ);
+            return dist < minDistanceBetweenItems;
+          });
+
+          if (tooCloseToOther) {
+            continue;
+          }
+
+          generatedPositions.push({ posX, posZ, type });
+          placed = true;
+        }
+
+        if (!placed) {
+          console.warn(`[WARN] Limite de reintentos alcanzado al ubicar coleccionable de tipo ${type}.`);
+        }
+      }
     }
 
     return prisma.$transaction(async (tx) => {
@@ -705,6 +760,23 @@ export class MatchService {
         data: { status: InvitationStatus.REJECTED },
       });
 
+      // Eliminar registros previos de coleccionables si existieran
+      await tx.matchCollectible.deleteMany({
+        where: { matchId },
+      });
+
+      // Persistir las instancias de coleccionables generadas
+      if (generatedPositions.length > 0) {
+        await tx.matchCollectible.createMany({
+          data: generatedPositions.map((pos) => ({
+            matchId,
+            type: pos.type,
+            posX: pos.posX,
+            posZ: pos.posZ,
+          })),
+        });
+      }
+
       // Pasar partida a IN_PROGRESS
       const updatedMatch = await tx.match.update({
         where: { id: matchId },
@@ -714,8 +786,34 @@ export class MatchService {
         },
       });
 
-      console.log(`[INFO] Partida ${matchId} iniciada satisfactoriamente.`);
+      console.log(`[INFO] Partida ${matchId} iniciada exitosamente con ${generatedPositions.length} coleccionables generados.`);
       return updatedMatch;
+    });
+  }
+
+  /**
+   * Consulta el listado de objetos coleccionables generados para una partida.
+   */
+  public static async getMatchCollectibles(matchId: string) {
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { id: true, status: true },
+    });
+
+    if (!match) {
+      throw new Error('La partida especificada no existe.');
+    }
+
+    return prisma.matchCollectible.findMany({
+      where: { matchId },
+      select: {
+        id: true,
+        type: true,
+        posX: true,
+        posZ: true,
+        collectedByTeamId: true,
+      },
+      orderBy: { createdAt: 'asc' },
     });
   }
 
@@ -737,6 +835,9 @@ export class MatchService {
       },
     });
 
+    // Desconectar inmediatamente a todos los jugadores de las salas multijugador activas
+    SwampRoom.closeRoomForMatch(matchId, 'La partida ha sido finalizada por un administrador.');
+
     console.log(`[INFO] Partida ${matchId} finalizada.`);
     return updated;
   }
@@ -751,7 +852,7 @@ export class MatchService {
       throw new Error('La partida ya se encuentra terminada o cancelada.');
     }
 
-    return prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       await tx.teamInvitation.updateMany({
         where: {
           matchId,
@@ -760,7 +861,7 @@ export class MatchService {
         data: { status: InvitationStatus.REJECTED },
       });
 
-      const updated = await tx.match.update({
+      const res = await tx.match.update({
         where: { id: matchId },
         data: {
           status: MatchStatus.CANCELLED,
@@ -768,8 +869,13 @@ export class MatchService {
         },
       });
 
-      console.log(`[INFO] Partida ${matchId} cancelada.`);
-      return updated;
+      return res;
     });
+
+    // Desconectar inmediatamente a todos los jugadores de las salas multijugador activas
+    SwampRoom.closeRoomForMatch(matchId, 'La partida ha sido cancelada por un administrador.');
+
+    console.log(`[INFO] Partida ${matchId} cancelada.`);
+    return updated;
   }
 }

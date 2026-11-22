@@ -393,10 +393,6 @@ export class MapEditor {
       'Tronco.glb',
       'Arbol_TP.glb',
       'TP.glb',
-      'Adivinalo.glb',
-      'Carta_Pregunta.glb',
-      'TiburonAzul.glb',
-      'TiburonRojo.glb',
     ];
   }
 

@@ -4,6 +4,9 @@ import { PlayerController } from './PlayerController';
 import { CollectiblesManager } from './CollectiblesManager';
 import { MapEditor } from './MapEditor';
 import { AudioManager } from './AudioManager';
+import { SoundManager } from './SoundManager';
+import { RemotePlayerAvatar, RemotePlayerData } from './RemotePlayerAvatar';
+import { MatchCollectibleDto } from '../types/match';
 
 /**
  * Escena principal 3D del pantano. Gestiona el ciclo de renderizado, camara, BVH y MapEditor.
@@ -19,16 +22,22 @@ export class SwampScene {
   public collectiblesManager: CollectiblesManager;
   private mapEditor: MapEditor | null = null;
   private audioManager: AudioManager;
+  public soundManager: SoundManager;
+  private remoteAvatars: Map<string, RemotePlayerAvatar> = new Map();
 
-  private clock: THREE.Clock;
+  private lastTime: number = 0;
+  private startTime: number = 0;
   private animationFrameId: number | null = null;
   private isDisposed: boolean = false;
 
   private boundOnResize: () => void;
 
+  public onInteract?: (nearby: { type: 'item' | 'portal'; id?: string; name: string }) => void;
+
   constructor(container: HTMLElement) {
     this.container = container;
-    this.clock = new THREE.Clock();
+    this.startTime = performance.now();
+    this.lastTime = this.startTime;
 
     // 1. Inicializacion de Escena y Niebla atmosferica
     this.scene = new THREE.Scene();
@@ -66,6 +75,7 @@ export class SwampScene {
 
     // 5. Instanciar modulos base
     this.audioManager = new AudioManager();
+    this.soundManager = new SoundManager();
     this.collectiblesManager = new CollectiblesManager();
     this.worldBuilder = new WorldBuilder(this.scene, this.collectiblesManager);
     this.playerController = new PlayerController(this.camera, this.renderer.domElement);
@@ -113,11 +123,15 @@ export class SwampScene {
     // Conectar malla BVH consolidada con el controlador del jugador
     this.playerController.setColliderMesh(this.worldBuilder.getColliderMesh());
 
-    // Configurar tecla E para interactuar con objetos
+    // Configurar tecla E para interactuar con objetos o portal
     this.playerController.onInteractPressed = () => {
       const nearby = this.collectiblesManager.checkNearby(this.playerController.getPosition());
-      if (nearby && nearby.type === 'item' && nearby.id) {
-        this.collectiblesManager.collect(nearby.id);
+      if (nearby) {
+        if (this.onInteract) {
+          this.onInteract(nearby);
+        } else if (nearby.type === 'item' && nearby.id) {
+          this.collectiblesManager.collect(nearby.id);
+        }
       }
     };
   }
@@ -138,8 +152,10 @@ export class SwampScene {
 
     this.animationFrameId = requestAnimationFrame(() => this.animate());
 
-    const delta = Math.min(this.clock.getDelta(), 0.1);
-    const elapsedTime = this.clock.getElapsedTime();
+    const now = performance.now();
+    const delta = Math.min((now - this.lastTime) / 1000, 0.1);
+    this.lastTime = now;
+    const elapsedTime = (now - this.startTime) / 1000;
 
     // Actualizar jugador y colisiones geometricas precisas con three-mesh-bvh
     this.playerController.update(delta);
@@ -148,7 +164,63 @@ export class SwampScene {
     this.worldBuilder.update(elapsedTime);
     this.collectiblesManager.update(delta);
 
+    // Actualizar interpolacion y animaciones de avatares remotos
+    this.remoteAvatars.forEach((avatar) => {
+      avatar.update(delta);
+    });
+
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Agrega el avatar tridimensional de un jugador remoto conectado a la sala.
+   */
+  public addRemotePlayer(sessionId: string, data: RemotePlayerData): void {
+    if (this.remoteAvatars.has(sessionId)) {
+      this.removeRemotePlayer(sessionId);
+    }
+    const avatar = new RemotePlayerAvatar(data);
+    this.scene.add(avatar.group);
+    this.remoteAvatars.set(sessionId, avatar);
+  }
+
+  /**
+   * Remueve y destruye el avatar de un jugador que abandono la partida.
+   */
+  public removeRemotePlayer(sessionId: string): void {
+    const avatar = this.remoteAvatars.get(sessionId);
+    if (avatar) {
+      avatar.dispose(this.scene);
+      this.remoteAvatars.delete(sessionId);
+    }
+  }
+
+  /**
+   * Actualiza la posicion y animacion objetivo de un jugador remoto.
+   */
+  public updateRemotePlayer(
+    sessionId: string,
+    data: { x: number; y: number; z: number; ry: number; animState?: string }
+  ): void {
+    const avatar = this.remoteAvatars.get(sessionId);
+    if (avatar) {
+      avatar.updateData(data);
+    }
+  }
+
+  public getSoundManager(): SoundManager {
+    return this.soundManager;
+  }
+
+  /**
+   * Carga y renderiza en la escena los coleccionables dinamicos generados por la partida.
+   */
+  public async loadDynamicCollectibles(collectibles: MatchCollectibleDto[]): Promise<void> {
+    await this.collectiblesManager.loadDynamicCollectibles(
+      collectibles,
+      this.scene,
+      (x, z) => this.worldBuilder.getTerrainHeight(x, z)
+    );
   }
 
   /**
@@ -202,10 +274,16 @@ export class SwampScene {
       this.mapEditor = null;
     }
 
+    this.remoteAvatars.forEach((avatar) => {
+      avatar.dispose(this.scene);
+    });
+    this.remoteAvatars.clear();
+
     this.playerController.dispose();
     this.worldBuilder.dispose();
     this.collectiblesManager.dispose();
     this.audioManager.dispose();
+    this.soundManager.dispose();
 
     this.scene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {

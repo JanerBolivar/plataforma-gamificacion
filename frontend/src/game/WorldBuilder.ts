@@ -295,8 +295,9 @@ export class WorldBuilder {
       });
     }
 
-    // Instanciar objetos a partir del mapa cargado
+    // Instanciar objetos a partir del mapa cargado (omitiendo coleccionables estaticos ya que provienen de la partida)
     for (const objDef of this.mapData.objects) {
+      if (objDef.category === 'collectible') continue;
       this.instantiateObject(objDef, false);
     }
 
@@ -473,7 +474,9 @@ export class WorldBuilder {
     return {
       version: this.mapData.version || '1.0',
       mapName: this.mapData.mapName || 'pantano',
-      objects: Array.from(this.instantiatedObjects.values()).map((entry) => entry.definition),
+      objects: Array.from(this.instantiatedObjects.values())
+        .map((entry) => entry.definition)
+        .filter((def) => def.category !== 'collectible'),
     };
   }
 

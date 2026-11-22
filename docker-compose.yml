@@ -38,6 +38,7 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      SWAMP_TIME_MINUTES: ${SWAMP_TIME_MINUTES:-15}
     ports:
       - "${PORT:-4000}:${PORT:-4000}"
     depends_on:

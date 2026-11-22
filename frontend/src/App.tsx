@@ -10,6 +10,7 @@ import UsersPage from './pages/admin/UsersPage';
 import MatchesPage from './pages/lobby/MatchesPage';
 import MatchLobbyPage from './pages/lobby/MatchLobbyPage';
 import GamePage from './pages/game/GamePage';
+import CircoPage from './pages/game/CircoPage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -107,6 +108,15 @@ export const AppContent: React.FC = () => {
         element={
           <ProtectedRoute fullScreen>
             <GamePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/game/:matchId/circo"
+        element={
+          <ProtectedRoute fullScreen>
+            <CircoPage />
           </ProtectedRoute>
         }
       />

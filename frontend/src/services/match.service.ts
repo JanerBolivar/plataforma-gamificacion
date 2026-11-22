@@ -1,5 +1,5 @@
 import apiClient from '../api/client';
-import { MatchesResponse, MatchLobbyDetails } from '../types/match';
+import { MatchesResponse, MatchLobbyDetails, MatchCollectibleDto } from '../types/match';
 
 export const matchService = {
   async getMatches(): Promise<MatchesResponse> {
@@ -70,5 +70,12 @@ export const matchService = {
 
   async cancelMatch(matchId: string): Promise<void> {
     await apiClient.post(`/api/matches/${matchId}/cancel`);
+  },
+
+  async getMatchCollectibles(matchId: string): Promise<MatchCollectibleDto[]> {
+    const response = await apiClient.get<{ status: string; data: MatchCollectibleDto[] }>(
+      `/api/matches/${matchId}/collectibles`
+    );
+    return response.data.data;
   },
 };

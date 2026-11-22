@@ -109,3 +109,13 @@ export interface MatchLobbyDetails {
   unassignedParticipants: LobbyParticipant[];
   myPendingInvitations: PendingInvitation[];
 }
+
+export type CollectibleType = 'ADIVINALO' | 'CARTA_PREGUNTA' | 'TIBURON_AZUL' | 'TIBURON_ROJO';
+
+export interface MatchCollectibleDto {
+  id: string;
+  type: CollectibleType;
+  posX: number;
+  posZ: number;
+  collectedByTeamId?: string | null;
+}

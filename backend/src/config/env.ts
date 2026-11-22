@@ -19,6 +19,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('8h'),
   ADMIN_EMAILS: z.string().default(''),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
+  SWAMP_TIME_MINUTES: z.string().default('15').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
 });
 
 const _env = envSchema.safeParse(process.env);
