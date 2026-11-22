@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+}
+
+enum MatchStatus {
+  WAITING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id                   String            @id @default(uuid())
+  microsoftId          String            @unique
+  email                String            @unique
+  firstName            String
+  lastName             String
+  role                 Role              @default(STUDENT)
+  status               UserStatus        @default(PENDING)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  createdMatches       Match[]           @relation("MatchCreator")
+  matchParticipations  MatchParticipant[]
+  sentInvitations      TeamInvitation[]  @relation("InvitationSender")
+  receivedInvitations  TeamInvitation[]  @relation("InvitationReceiver")
+}
+
+model Match {
+  id             String             @id @default(uuid())
+  name           String
+  maxTeams       Int
+  maxTeamMembers Int                @default(6)
+  status         MatchStatus        @default(WAITING)
+  creatorId      String
+  createdAt      DateTime           @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+
+  creator        User               @relation("MatchCreator", fields: [creatorId], references: [id])
+  teams          Team[]
+  participants   MatchParticipant[]
+  invitations    TeamInvitation[]
+}
+
+model Team {
+  id           String             @id @default(uuid())
+  name         String
+  matchId      String
+  createdAt    DateTime           @default(now())
+
+  match        Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  members      MatchParticipant[]
+  invitations  TeamInvitation[]
+
+  @@unique([matchId, name])
+}
+
+model MatchParticipant {
+  id        String    @id @default(uuid())
+  matchId   String
+  userId    String
+  teamId    String?
+  joinedAt  DateTime  @default(now())
+
+  match     Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId, userId])
+}
+
+model TeamInvitation {
+  id         String           @id @default(uuid())
+  matchId    String
+  teamId     String
+  inviterId  String
+  inviteeId  String
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+
+  match      Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team       Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviter    User             @relation("InvitationSender", fields: [inviterId], references: [id])
+  invitee    User             @relation("InvitationReceiver", fields: [inviteeId], references: [id])
+}

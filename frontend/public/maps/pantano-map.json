@@ -1,0 +1,1474 @@
+{
+  "version": "1.0",
+  "mapName": "pantano",
+  "objects": [
+    {
+      "id": "sala_bienvenida_1",
+      "model": "Sala_Bienvenida.glb",
+      "category": "structure",
+      "position": [
+        0,
+        5.41,
+        80
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "choza_baja_1",
+      "model": "Choza_Baja.glb",
+      "category": "structure",
+      "position": [
+        65,
+        3.76,
+        0
+      ],
+      "rotation": [
+        0,
+        -0.785,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "choza_alta_1",
+      "model": "Choza_Alta.glb",
+      "category": "structure",
+      "position": [
+        -60,
+        7.04,
+        -45
+      ],
+      "rotation": [
+        0,
+        0.524,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "arbol_tp_1",
+      "model": "Arbol_TP.glb",
+      "category": "structure",
+      "position": [
+        60,
+        5.38,
+        -75
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "portal_1",
+      "model": "TP.glb",
+      "category": "portal",
+      "position": [
+        58.7,
+        2.23,
+        -69.09
+      ],
+      "rotation": [
+        -0.995,
+        -0.113,
+        -0.243
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ]
+    },
+    {
+      "id": "adivinalo",
+      "model": "Adivinalo.glb",
+      "category": "collectible",
+      "name": "Adivínalo",
+      "position": [
+        25,
+        2,
+        45
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "carta_pregunta",
+      "model": "Carta_Pregunta.glb",
+      "category": "collectible",
+      "name": "Carta Pregunta",
+      "position": [
+        -45,
+        2,
+        20
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "tiburon_azul",
+      "model": "TiburonAzul.glb",
+      "category": "collectible",
+      "name": "Tiburón Azul",
+      "position": [
+        75,
+        2.19,
+        25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "tiburon_rojo",
+      "model": "TiburonRojo.glb",
+      "category": "collectible",
+      "name": "Tiburón Rojo",
+      "position": [
+        -45,
+        2.24,
+        -60
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "tree_1",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        51.38,
+        6.41,
+        78.86
+      ],
+      "rotation": [
+        0,
+        2.9248,
+        0
+      ],
+      "scale": [
+        1.05,
+        1.05,
+        1.05
+      ]
+    },
+    {
+      "id": "tree_2",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        64.53,
+        6.95,
+        104.01
+      ],
+      "rotation": [
+        0,
+        3.1647,
+        0
+      ],
+      "scale": [
+        1.14,
+        1.14,
+        1.14
+      ]
+    },
+    {
+      "id": "tree_3",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        101.23,
+        6.91,
+        -53.72
+      ],
+      "rotation": [
+        0,
+        5.9386,
+        0
+      ],
+      "scale": [
+        0.99,
+        0.99,
+        0.99
+      ]
+    },
+    {
+      "id": "tree_4",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -77.55,
+        5.92,
+        91.84
+      ],
+      "rotation": [
+        0,
+        5.8166,
+        0
+      ],
+      "scale": [
+        0.97,
+        0.97,
+        0.97
+      ]
+    },
+    {
+      "id": "tree_5",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -10.08,
+        4.56,
+        16.49
+      ],
+      "rotation": [
+        0,
+        2.721,
+        0
+      ],
+      "scale": [
+        0.85,
+        0.85,
+        0.85
+      ]
+    },
+    {
+      "id": "tree_6",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -98.32,
+        5.73,
+        67.9
+      ],
+      "rotation": [
+        0,
+        1.2285,
+        0
+      ],
+      "scale": [
+        0.94,
+        0.94,
+        0.94
+      ]
+    },
+    {
+      "id": "tree_7",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        54.25,
+        6.37,
+        -25.55
+      ],
+      "rotation": [
+        0,
+        1.4943,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "tree_8",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -68.4,
+        6.65,
+        -79.17
+      ],
+      "rotation": [
+        0,
+        0.6482,
+        0
+      ],
+      "scale": [
+        1.09,
+        1.09,
+        1.09
+      ]
+    },
+    {
+      "id": "tree_9",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        55.65,
+        5.66,
+        53.28
+      ],
+      "rotation": [
+        0,
+        5.808,
+        0
+      ],
+      "scale": [
+        0.92,
+        0.92,
+        0.92
+      ]
+    },
+    {
+      "id": "tree_10",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -9.59,
+        6.07,
+        -94.95
+      ],
+      "rotation": [
+        0,
+        2.104,
+        0
+      ],
+      "scale": [
+        1.08,
+        1.08,
+        1.08
+      ]
+    },
+    {
+      "id": "tree_11",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        16.69,
+        6.22,
+        -70.25
+      ],
+      "rotation": [
+        0,
+        0.858,
+        0
+      ],
+      "scale": [
+        1.13,
+        1.13,
+        1.13
+      ]
+    },
+    {
+      "id": "tree_12",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        85.52,
+        6.34,
+        -54.6
+      ],
+      "rotation": [
+        0,
+        1.2916,
+        0
+      ],
+      "scale": [
+        0.91,
+        0.91,
+        0.91
+      ]
+    },
+    {
+      "id": "tree_13",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -82.85,
+        6.38,
+        -91.47
+      ],
+      "rotation": [
+        0,
+        5.1902,
+        0
+      ],
+      "scale": [
+        1.04,
+        1.04,
+        1.04
+      ]
+    },
+    {
+      "id": "tree_14",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -42.99,
+        6.54,
+        -36.9
+      ],
+      "rotation": [
+        0,
+        1.539,
+        0
+      ],
+      "scale": [
+        1.12,
+        1.12,
+        1.12
+      ]
+    },
+    {
+      "id": "tree_15",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        104.61,
+        5.98,
+        -23.97
+      ],
+      "rotation": [
+        0,
+        5.6184,
+        0
+      ],
+      "scale": [
+        0.96,
+        0.96,
+        0.96
+      ]
+    },
+    {
+      "id": "tree_16",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -90.92,
+        6.28,
+        99.41
+      ],
+      "rotation": [
+        0,
+        1.76,
+        0
+      ],
+      "scale": [
+        1.03,
+        1.03,
+        1.03
+      ]
+    },
+    {
+      "id": "tree_17",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        11.41,
+        5.14,
+        -60.58
+      ],
+      "rotation": [
+        0,
+        3.383,
+        0
+      ],
+      "scale": [
+        0.99,
+        0.99,
+        0.99
+      ]
+    },
+    {
+      "id": "tree_18",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -37.78,
+        5.26,
+        34.52
+      ],
+      "rotation": [
+        0,
+        2.1239,
+        0
+      ],
+      "scale": [
+        0.85,
+        0.85,
+        0.85
+      ]
+    },
+    {
+      "id": "tree_19",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        106.55,
+        4.65,
+        5.36
+      ],
+      "rotation": [
+        0,
+        4.297,
+        0
+      ],
+      "scale": [
+        0.95,
+        0.95,
+        0.95
+      ]
+    },
+    {
+      "id": "tree_20",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -101.65,
+        6.57,
+        -60.48
+      ],
+      "rotation": [
+        0,
+        1.008,
+        0
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ]
+    },
+    {
+      "id": "tree_21",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -42.2,
+        5.54,
+        53.64
+      ],
+      "rotation": [
+        0,
+        5.643,
+        0
+      ],
+      "scale": [
+        0.94,
+        0.94,
+        0.94
+      ]
+    },
+    {
+      "id": "tree_22",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -73.41,
+        5.46,
+        -33.48
+      ],
+      "rotation": [
+        0,
+        1.591,
+        0
+      ],
+      "scale": [
+        0.97,
+        0.97,
+        0.97
+      ]
+    },
+    {
+      "id": "tree_23",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        13.99,
+        5.74,
+        -94.34
+      ],
+      "rotation": [
+        0,
+        2.09,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "tree_24",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -2.73,
+        4.97,
+        -90.92
+      ],
+      "rotation": [
+        0,
+        0.08,
+        0
+      ],
+      "scale": [
+        0.88,
+        0.88,
+        0.88
+      ]
+    },
+    {
+      "id": "tree_25",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        36.67,
+        4.82,
+        -66.67
+      ],
+      "rotation": [
+        0,
+        3.63,
+        0
+      ],
+      "scale": [
+        0.87,
+        0.87,
+        0.87
+      ]
+    },
+    {
+      "id": "tree_26",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -82.35,
+        5.93,
+        -97.65
+      ],
+      "rotation": [
+        0,
+        1.7234,
+        0
+      ],
+      "scale": [
+        0.93,
+        0.93,
+        0.93
+      ]
+    },
+    {
+      "id": "tree_27",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -20.31,
+        4.76,
+        -96.95
+      ],
+      "rotation": [
+        0,
+        3.36,
+        0
+      ],
+      "scale": [
+        0.87,
+        0.87,
+        0.87
+      ]
+    },
+    {
+      "id": "tree_28",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        77.85,
+        5.61,
+        80.31
+      ],
+      "rotation": [
+        0,
+        4.9122,
+        0
+      ],
+      "scale": [
+        0.92,
+        0.92,
+        0.92
+      ]
+    },
+    {
+      "id": "tree_29",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        39.85,
+        7.19,
+        -21.74
+      ],
+      "rotation": [
+        0,
+        2.062,
+        0
+      ],
+      "scale": [
+        1.11,
+        1.11,
+        1.11
+      ]
+    },
+    {
+      "id": "tree_30",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        87.86,
+        6.12,
+        -81.24
+      ],
+      "rotation": [
+        0,
+        0.7378,
+        0
+      ],
+      "scale": [
+        0.93,
+        0.93,
+        0.93
+      ]
+    },
+    {
+      "id": "tree_31",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -25.28,
+        6.22,
+        62.06
+      ],
+      "rotation": [
+        0,
+        5.7483,
+        0
+      ],
+      "scale": [
+        1.02,
+        1.02,
+        1.02
+      ]
+    },
+    {
+      "id": "tree_32",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -17.11,
+        4.58,
+        -26.41
+      ],
+      "rotation": [
+        0,
+        3.519,
+        0
+      ],
+      "scale": [
+        0.9,
+        0.9,
+        0.9
+      ]
+    },
+    {
+      "id": "tree_33",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -53.3,
+        5.92,
+        -7.15
+      ],
+      "rotation": [
+        0,
+        3.28,
+        0
+      ],
+      "scale": [
+        1.06,
+        1.06,
+        1.06
+      ]
+    },
+    {
+      "id": "tree_34",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -38.78,
+        6.47,
+        108.99
+      ],
+      "rotation": [
+        0,
+        0.7667,
+        0
+      ],
+      "scale": [
+        1.06,
+        1.06,
+        1.06
+      ]
+    },
+    {
+      "id": "tree_35",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -82.22,
+        5.79,
+        82.99
+      ],
+      "rotation": [
+        0,
+        2.6485,
+        0
+      ],
+      "scale": [
+        0.95,
+        0.95,
+        0.95
+      ]
+    },
+    {
+      "id": "tree_36",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -44.49,
+        5.92,
+        61.3
+      ],
+      "rotation": [
+        0,
+        1.0788,
+        0
+      ],
+      "scale": [
+        0.97,
+        0.97,
+        0.97
+      ]
+    },
+    {
+      "id": "tree_37",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -60.31,
+        6.16,
+        -94.62
+      ],
+      "rotation": [
+        0,
+        3.5166,
+        0
+      ],
+      "scale": [
+        1.01,
+        1.01,
+        1.01
+      ]
+    },
+    {
+      "id": "tree_38",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -66.72,
+        7.35,
+        -103.41
+      ],
+      "rotation": [
+        0,
+        3.4789,
+        0
+      ],
+      "scale": [
+        1.18,
+        1.18,
+        1.18
+      ]
+    },
+    {
+      "id": "tree_39",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -90.23,
+        5.31,
+        105.08
+      ],
+      "rotation": [
+        0,
+        2.6717,
+        0
+      ],
+      "scale": [
+        0.87,
+        0.87,
+        0.87
+      ]
+    },
+    {
+      "id": "tree_40",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -90.2,
+        6.16,
+        -89.32
+      ],
+      "rotation": [
+        0,
+        4.3984,
+        0
+      ],
+      "scale": [
+        1.01,
+        1.01,
+        1.01
+      ]
+    },
+    {
+      "id": "tree_41",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -85.65,
+        5.15,
+        19.57
+      ],
+      "rotation": [
+        0,
+        3.229,
+        0
+      ],
+      "scale": [
+        0.93,
+        0.93,
+        0.93
+      ]
+    },
+    {
+      "id": "tree_42",
+      "model": "Arbol_pantano.glb",
+      "category": "vegetation",
+      "position": [
+        -54.84,
+        6.71,
+        -92.44
+      ],
+      "rotation": [
+        0,
+        5.3695,
+        0
+      ],
+      "scale": [
+        1.1,
+        1.1,
+        1.1
+      ]
+    },
+    {
+      "id": "log_1",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        38.42,
+        0.33,
+        -74.17
+      ],
+      "rotation": [
+        0,
+        2.83,
+        0
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ]
+    },
+    {
+      "id": "log_2",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -60.94,
+        1.37,
+        11.63
+      ],
+      "rotation": [
+        -2.052,
+        0.114,
+        1.63
+      ],
+      "scale": [
+        1.14,
+        1.14,
+        1.14
+      ]
+    },
+    {
+      "id": "log_3",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -3.02,
+        0.41,
+        -74.55
+      ],
+      "rotation": [
+        0,
+        0.155,
+        0
+      ],
+      "scale": [
+        1.17,
+        1.17,
+        1.17
+      ]
+    },
+    {
+      "id": "log_4",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        85.16,
+        0.35,
+        -24.18
+      ],
+      "rotation": [
+        0,
+        3.123,
+        0
+      ],
+      "scale": [
+        1.08,
+        1.08,
+        1.08
+      ]
+    },
+    {
+      "id": "log_5",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -71.24,
+        0,
+        20.13
+      ],
+      "rotation": [
+        0,
+        4.126,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "log_6",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -44.14,
+        0.09,
+        21.23
+      ],
+      "rotation": [
+        0,
+        2.983,
+        0
+      ],
+      "scale": [
+        1.03,
+        1.03,
+        1.03
+      ]
+    },
+    {
+      "id": "log_7",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -14.79,
+        -0.12,
+        -5.57
+      ],
+      "rotation": [
+        0,
+        2.369,
+        0
+      ],
+      "scale": [
+        1.09,
+        1.09,
+        1.09
+      ]
+    },
+    {
+      "id": "log_8",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        0.69,
+        0.17,
+        -68.79
+      ],
+      "rotation": [
+        0.662,
+        -0.539,
+        0.489
+      ],
+      "scale": [
+        1.15,
+        1.15,
+        1.15
+      ]
+    },
+    {
+      "id": "log_9",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        3.74,
+        0.02,
+        -51.7
+      ],
+      "rotation": [
+        0,
+        0.522,
+        0
+      ],
+      "scale": [
+        1.17,
+        1.17,
+        1.17
+      ]
+    },
+    {
+      "id": "log_10",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -100.37,
+        0.34,
+        -74.36
+      ],
+      "rotation": [
+        0,
+        3.554,
+        0
+      ],
+      "scale": [
+        0.99,
+        0.99,
+        0.99
+      ]
+    },
+    {
+      "id": "log_11",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        105.11,
+        0.22,
+        8.41
+      ],
+      "rotation": [
+        0,
+        4.932,
+        0
+      ],
+      "scale": [
+        0.99,
+        0.99,
+        0.99
+      ]
+    },
+    {
+      "id": "log_12",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -49.23,
+        0.23,
+        30.87
+      ],
+      "rotation": [
+        0,
+        5.508,
+        0
+      ],
+      "scale": [
+        0.91,
+        0.91,
+        0.91
+      ]
+    },
+    {
+      "id": "log_13",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -101.82,
+        0.34,
+        -87.3
+      ],
+      "rotation": [
+        0,
+        5.205,
+        0
+      ],
+      "scale": [
+        1.14,
+        1.14,
+        1.14
+      ]
+    },
+    {
+      "id": "log_14",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -22.49,
+        -0.13,
+        -15.49
+      ],
+      "rotation": [
+        0,
+        2.316,
+        0
+      ],
+      "scale": [
+        1.05,
+        1.05,
+        1.05
+      ]
+    },
+    {
+      "id": "log_15",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -63.52,
+        -0.04,
+        -11.36
+      ],
+      "rotation": [
+        0,
+        3.28,
+        0
+      ],
+      "scale": [
+        1.03,
+        1.03,
+        1.03
+      ]
+    },
+    {
+      "id": "log_16",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -87.26,
+        0.28,
+        100.79
+      ],
+      "rotation": [
+        0,
+        5.227,
+        0
+      ],
+      "scale": [
+        1.14,
+        1.14,
+        1.14
+      ]
+    },
+    {
+      "id": "log_17",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        -10.74,
+        -0.01,
+        -0.51
+      ],
+      "rotation": [
+        0,
+        1.562,
+        0
+      ],
+      "scale": [
+        0.93,
+        0.93,
+        0.93
+      ]
+    },
+    {
+      "id": "log_18",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "position": [
+        101.19,
+        0.57,
+        -37.86
+      ],
+      "rotation": [
+        0,
+        4.31,
+        0
+      ],
+      "scale": [
+        1.14,
+        1.14,
+        1.14
+      ]
+    },
+    {
+      "id": "tronco_parkour_1",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "name": "Tronco Parkour 1",
+      "position": [
+        -63.46,
+        2.18,
+        -56.4
+      ],
+      "rotation": [
+        0.44,
+        -0.401,
+        -0.954
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": "tronco_parkour_2",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "name": "Tronco Parkour 2",
+      "position": [
+        -64.68,
+        4.27,
+        -52.53
+      ],
+      "rotation": [
+        1.441,
+        -0.323,
+        1.046
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": "tronco_parkour_3",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "name": "Tronco Parkour 3",
+      "position": [
+        -65.76,
+        3.22,
+        -53.47
+      ],
+      "rotation": [
+        0.81,
+        0.263,
+        -1.184
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": "tronco_1795325877479",
+      "model": "Tronco.glb",
+      "category": "vegetation",
+      "name": "Tronco Parkour 2 (Copia)",
+      "position": [
+        -64.58,
+        4.22,
+        -51.42
+      ],
+      "rotation": [
+        1.441,
+        -0.323,
+        1.046
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    }
+  ]
+}

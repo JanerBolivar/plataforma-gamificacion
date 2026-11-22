@@ -1,0 +1,64 @@
+# LICENCIA DE SOFTWARE PROPIETARIO
+
+**Todos los derechos reservados.**
+
+Copyright (c) 2026 Janer Fabian Muñoz Bolivar.
+Universidad de la Amazonia — Florencia, Caquetá, Colombia.
+
+---
+
+## 1. Titularidad y Propiedad Intelectual
+
+El presente software, que comprende el código fuente, código objeto, documentación técnica, interfaces gráficas, modelos tridimensionales, esquemas de bases de datos, algoritmos de renderizado y física, así como cualquier archivo o material asociado que conforma la **Plataforma de Gamificación Educativa** (en adelante, "el Software"), es propiedad intelectual exclusiva de:
+
+**Janer Fabian Muñoz Bolivar**  
+Ingeniero de Sistemas | Consultor de Software e Infraestructura | Maestrante en Analítica de Datos  
+(en adelante, "el Autor" y "el Titular").
+
+El Software se encuentra protegido por las leyes de propiedad intelectual y derechos de autor vigentes en la República de Colombia (incluyendo la Ley 23 de 1982, la Ley 44 de 1993, la Decisión Andina 351 de 1993 de la Comisión del Acuerdo de Cartagena), así como por los tratados internacionales aplicables suscritos y ratificados por Colombia.
+
+---
+
+## 2. Ámbito Institucional y Concesión de Uso
+
+El Titular concede a la **Universidad de la Amazonia** (institución de educación superior con sede en Florencia, Caquetá, Colombia) una licencia de uso de carácter:
+
+1. **No exclusiva:** El Titular se reserva el derecho de licenciar, transferir, comercializar o modificar el Software en favor de terceros.
+2. **Institucional y académica:** Destinada primordialmente a actividades formativas, de investigación, docencia, extensión y evaluación pedagógica dentro de la comunidad universitaria de la Universidad de la Amazonia.
+3. **Intransferible y no sublicenciable:** La Universidad de la Amazonia no podrá ceder, transferir, arrendar, prestar ni sublicenciar el Software a terceros sin la autorización previa y por escrito del Titular.
+
+---
+
+## 3. Restricciones de Uso
+
+Salvo autorización expresa y por escrito otorgada por Janer Fabian Muñoz Bolivar, queda terminantemente prohibido a cualquier persona natural o jurídica:
+
+1. Copiar, duplicar, reproducir o distribuir parcial o totalmente el código fuente o compilado con fines comerciales o de lucro.
+2. Realizar procesos de ingeniería inversa, desensamblaje, descompilación o intentar derivar el código fuente de los módulos propietarios que se distribuyan en formato binario o compilado.
+3. Modificar, adaptar, traducir o crear obras derivadas basadas en el Software sin el consentimiento explícito del Titular.
+4. Eliminar, ocultar o alterar cualquier aviso de derechos de autor, marcas comerciales, firmas de auditoría o avisos de propiedad intelectual contenidos en los archivos del proyecto.
+5. Emplear el Software, su motor 3D o sus modelos de datos para propósitos que contravengan las normas éticas, académicas o legales aplicables.
+
+---
+
+## 4. Confidencialidad y Protección de Datos
+
+Cualquier información de configuración, credenciales de acceso, arquitecturas internas, llaves criptográficas o datos de estudiantes y docentes gestionados por el Software deben ser tratados bajo estricta confidencialidad y conforme a las disposiciones del Régimen General de Protección de Datos Personales en Colombia (Ley Estatutaria 1581 de 2012 y Decretos Reglamentarios).
+
+---
+
+## 5. Exclusión de Garantías
+
+El Software se suministra "tal cual" (*as is*), sin garantías de ningún tipo, expresas o implícitas, incluyendo, entre otras, garantías de comerciabilidad, idoneidad para un fin específico o ausencia de infracciones. El Titular no garantiza que el funcionamiento del Software sea ininterrumpido o libre de errores, ni que los defectos identificados puedan ser corregidos de manera inmediata.
+
+---
+
+## 6. Limitación de Responsabilidad
+
+En ningún caso el Autor o Titular será responsable por daños directos, indirectos, incidentales, especiales, punitivos o consecuentes (incluyendo, entre otros, pérdida de datos, lucro cesante, interrupción del servicio o fallas de infraestructura) derivados del uso, la imposibilidad de uso o la implementación del Software, aun cuando se haya advertido la posibilidad de tales daños.
+
+---
+
+## 7. Legislación Aplicable y Jurisdicción
+
+Esta licencia y cualquier controversia que surja en relación con su interpretación, validez o ejecución se regirán e interpretarán de acuerdo con las leyes de la República de Colombia. Cualquier diferendo será sometido a la jurisdicción ordinaria de los juzgados y tribunales de la ciudad de Florencia, Caquetá, Colombia.
