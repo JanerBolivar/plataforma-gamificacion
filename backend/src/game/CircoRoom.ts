@@ -79,6 +79,12 @@ interface QuestionData {
   respuesta_correcta: string;
 }
 
+interface CircoGuessItItem {
+  number: number;
+  description: string;
+  concept: string;
+}
+
 interface AuthContext {
   userId: string;
   user: {
@@ -119,6 +125,10 @@ export class CircoRoom extends Room<{ state: CircoState }> {
   private questionsBank: QuestionData[] = [];
   private usedQuestionIds: Set<number> = new Set();
   private currentActiveQuestionId: number | null = null;
+  private guessItBank: CircoGuessItItem[] = [];
+  private usedGuessItNumbers: Set<number> = new Set();
+  private currentGuessItItem: CircoGuessItItem | null = null;
+  private currentGuessItOrdererId: string | null = null;
 
   private static activeRoomsByMatchId: Map<string, CircoRoom> = new Map();
 
@@ -272,8 +282,9 @@ export class CircoRoom extends Room<{ state: CircoState }> {
 
     CircoRoom.activeRoomsByMatchId.set(matchId, this);
 
-    // Cargar banco de preguntas en memoria
+    // Cargar banco de preguntas y banco de Adivinalo en memoria
     this.loadQuestionsBank();
+    this.loadGuessItBank();
 
     // Cargar datos de la partida y equipos desde la base de datos
     await this.initializeMatchData(matchId);
@@ -304,6 +315,30 @@ export class CircoRoom extends Room<{ state: CircoState }> {
       }
     } catch (err) {
       console.error('[ERROR] Error al cargar preguntas del Circo:', err);
+    }
+  }
+
+  private loadGuessItBank(): void {
+    try {
+      const candidates = [
+        path.resolve(__dirname, '../data/circo-guess-it.json'),
+        path.resolve(__dirname, '../../src/data/circo-guess-it.json'),
+        path.resolve(process.cwd(), 'src/data/circo-guess-it.json'),
+        path.resolve(process.cwd(), 'backend/src/data/circo-guess-it.json'),
+        path.resolve(process.cwd(), 'dist/data/circo-guess-it.json'),
+      ];
+
+      const guessItFilePath = candidates.find((p) => fs.existsSync(p));
+
+      if (guessItFilePath && fs.existsSync(guessItFilePath)) {
+        const raw = fs.readFileSync(guessItFilePath, 'utf8');
+        this.guessItBank = JSON.parse(raw);
+        console.log(`[INFO] Banco de Adivinalo cargado exitosamente (${this.guessItBank.length} items) desde ${guessItFilePath}`);
+      } else {
+        console.error('[ERROR] No se encontro el archivo circo-guess-it.json en las rutas candidatas.');
+      }
+    } catch (err) {
+      console.error('[ERROR] Error al cargar circo-guess-it.json:', err);
     }
   }
 
@@ -548,8 +583,13 @@ export class CircoRoom extends Room<{ state: CircoState }> {
 
         // Duracion de la animacion de elevacion de la carta (~3.0 segundos)
         this.clock.setTimeout(async () => {
-          if (selectedSector.cardType !== 'PREGUNTA') {
-            // Cartas no implementadas en Fase 5A: emitir placeholder y avanzar turno
+          if (selectedSector.cardType === 'PREGUNTA') {
+            this.activateQuestionFlow(currentTeam);
+          } else if (selectedSector.cardType === 'ADIVINALO') {
+            this.activateGuessItFlow(currentTeam);
+          } else if (selectedSector.cardType === 'TIBURON_ROJO' || selectedSector.cardType === 'TIBURON_AZUL') {
+            this.activateSharkFlow(currentTeam, selectedSector.cardType);
+          } else {
             this.broadcast('card_placeholder', {
               teamName: currentTeam.name,
               cardType: selectedSector.cardType,
@@ -558,9 +598,6 @@ export class CircoRoom extends Room<{ state: CircoState }> {
             this.clock.setTimeout(() => {
               this.advanceToNextTurn();
             }, 2500);
-          } else {
-            // Carta PREGUNTA
-            this.activateQuestionFlow(currentTeam);
           }
         }, 3000);
       }, 3500);
@@ -705,7 +742,255 @@ export class CircoRoom extends Room<{ state: CircoState }> {
       }
     });
 
-    // 4. Sincronizacion de movimiento y animaciones de avatar
+    // 4. Transicion de Fase 1 a Fase 2 de Adivinalo (el companero envia los fragmentos ordenados)
+    this.onMessage('submit_guess_it_order', async (client, data: { orderedFragments: string[] }) => {
+      const auth = client.auth as AuthContext;
+      if (!auth) return;
+
+      if (this.state.turnStep !== 'GUESS_IT_ORDERING') {
+        client.send('error', { message: 'No hay ninguna pista pendiente por ordenar o se agoto el tiempo.' });
+        return;
+      }
+
+      if (this.currentGuessItOrdererId !== auth.userId) {
+        client.send('error', { message: 'Solo el jugador designado puede enviar los fragmentos ordenados.' });
+        return;
+      }
+
+      if (!data.orderedFragments || !Array.isArray(data.orderedFragments) || data.orderedFragments.length === 0) {
+        client.send('error', { message: 'La lista de fragmentos ordenados no es valida.' });
+        return;
+      }
+
+      let currentTeam: CircoTeamSchema | null = null;
+      for (const [_, team] of this.state.teams.entries()) {
+        if (team.seat === this.state.currentTurnSeat) {
+          currentTeam = team;
+          break;
+        }
+      }
+
+      if (!currentTeam) {
+        this.advanceToNextTurn();
+        return;
+      }
+
+      const orderedPhrase = data.orderedFragments.join(' ');
+      this.state.turnStep = 'GUESS_IT_ANSWERING';
+
+      console.log(`[INFO] Fragmentos ordenados por ${auth.user.firstName}. Frase: "${orderedPhrase}". Pasando al representante.`);
+
+      // Buscar cliente del representante en el puesto
+      const repClient =
+        this.clients.find((c) => (c.auth as AuthContext)?.userId === currentTeam!.representativeId) ||
+        client;
+
+      repClient.send('guess_it_answer_prompt', {
+        itemNumber: this.currentGuessItItem?.number || 1,
+        orderedPhrase,
+        timeSeconds: this.state.questionTimeRemaining,
+      });
+
+      this.broadcast('guess_it_answering_started', {
+        teamName: currentTeam.name,
+        representativeName: currentTeam.representativeName,
+      });
+    });
+
+    // 5. Validacion de respuesta de Adivinalo (el representante escribe el concepto)
+    this.onMessage('submit_guess_it_answer', async (client, data: { concept: string }) => {
+      const auth = client.auth as AuthContext;
+      if (!auth) return;
+
+      if (this.state.turnStep !== 'GUESS_IT_ANSWERING') {
+        client.send('error', { message: 'No hay ningun desafio de Adivinalo en fase de respuesta.' });
+        return;
+      }
+
+      let currentTeam: CircoTeamSchema | null = null;
+      for (const [_, team] of this.state.teams.entries()) {
+        if (team.seat === this.state.currentTurnSeat) {
+          currentTeam = team;
+          break;
+        }
+      }
+
+      if (!currentTeam || currentTeam.representativeId !== auth.userId) {
+        client.send('error', { message: 'Solo el representante del equipo en turno puede enviar el concepto.' });
+        return;
+      }
+
+      if (!this.currentGuessItItem) {
+        this.advanceToNextTurn();
+        return;
+      }
+
+      // Detener temporizador
+      this.questionTimerInterval?.clear();
+      this.questionTimerInterval = undefined;
+      this.state.questionTimeRemaining = 0;
+
+      // Validacion estricta (respetando mayusculas, minusculas y tildes)
+      const inputConcept = (data.concept || '').trim();
+      const targetConcept = this.currentGuessItItem.concept.trim();
+      const isCorrect = inputConcept === targetConcept;
+
+      if (isCorrect) {
+        currentTeam.score += 1;
+        currentTeam.tokenPosition += 1;
+
+        console.log(`[INFO] Concepto CORRECTO de ${currentTeam.name} ("${inputConcept}"). Puntaje: ${currentTeam.score}, Ficha: ${currentTeam.tokenPosition}`);
+
+        this.broadcast('guess_it_result', {
+          correct: true,
+          teamName: currentTeam.name,
+          concept: targetConcept,
+          score: currentTeam.score,
+          tokenPosition: currentTeam.tokenPosition,
+        });
+
+        // Regla de Corona (posicion >= 5 en matriz de 6 casillas [0..5])
+        if (currentTeam.tokenPosition >= 5) {
+          currentTeam.tokenPosition = 5;
+          this.state.turnStep = 'CROWN_ANIMATING';
+          this.state.activeCardType = 'CORONA';
+          currentTeam.opportunities += 1;
+
+          await prisma.team.update({
+            where: { id: currentTeam.teamId },
+            data: {
+              score: currentTeam.score,
+              circoOpportunities: currentTeam.opportunities,
+              circoTokenPosition: 5,
+            },
+          });
+
+          console.log(`[INFO] ${currentTeam.name} alcanzo la casilla 5 (meta) y gano OPORTUNIDAD #${currentTeam.opportunities}!`);
+
+          this.broadcast('opportunity_earned', {
+            teamName: currentTeam.name,
+            opportunities: currentTeam.opportunities,
+          });
+
+          this.clock.setTimeout(async () => {
+            currentTeam.tokenPosition = 0;
+            try {
+              await prisma.team.update({
+                where: { id: currentTeam.teamId },
+                data: { circoTokenPosition: 0 },
+              });
+            } catch (err) {
+              console.error('[ERROR] Error al reiniciar posicion de ficha tras corona:', err);
+            }
+            this.advanceToNextTurn();
+          }, 4000);
+          return;
+        }
+
+        // Persistir avance en Prisma
+        await prisma.team.update({
+          where: { id: currentTeam.teamId },
+          data: {
+            score: currentTeam.score,
+            circoTokenPosition: currentTeam.tokenPosition,
+          },
+        });
+
+        this.clock.setTimeout(() => {
+          this.advanceToNextTurn();
+        }, 2000);
+      } else {
+        console.log(`[INFO] Concepto INCORRECTO de ${currentTeam.name} (Envio: "${inputConcept}", Esperado: "${targetConcept}").`);
+
+        this.broadcast('guess_it_result', {
+          correct: false,
+          teamName: currentTeam.name,
+          score: currentTeam.score,
+          tokenPosition: currentTeam.tokenPosition,
+        });
+
+        this.clock.setTimeout(() => {
+          this.advanceToNextTurn();
+        }, 2500);
+      }
+    });
+
+    // 6. Seleccion de equipo rival en carta de Tiburon (Eliminar una oportunidad)
+    this.onMessage('submit_shark_target', async (client: Client, data: { targetTeamId: string }) => {
+      const auth = client.auth as AuthContext;
+      if (!auth) return;
+
+      if (this.state.turnStep !== 'SHARK_SELECTING_TARGET') {
+        client.send('error', { message: 'No hay ninguna seleccion de carta de tiburon activa.' });
+        return;
+      }
+
+      let currentTeam: CircoTeamSchema | null = null;
+      for (const [_, team] of this.state.teams.entries()) {
+        if (team.seat === this.state.currentTurnSeat) {
+          currentTeam = team;
+          break;
+        }
+      }
+
+      if (!currentTeam) {
+        this.advanceToNextTurn();
+        return;
+      }
+
+      if (currentTeam.representativeId !== auth.userId) {
+        client.send('error', { message: 'Solo el representante del equipo en turno puede seleccionar el equipo objetivo.' });
+        return;
+      }
+
+      if (!data.targetTeamId || data.targetTeamId === currentTeam.teamId) {
+        client.send('error', { message: 'Debe seleccionar un equipo rival valido.' });
+        return;
+      }
+
+      const targetTeam = this.state.teams.get(data.targetTeamId);
+      if (!targetTeam) {
+        client.send('error', { message: 'El equipo objetivo no existe.' });
+        return;
+      }
+
+      // Detener temporizador regresivo
+      this.questionTimerInterval?.clear();
+      this.questionTimerInterval = undefined;
+      this.state.questionTimeRemaining = 0;
+
+      if (targetTeam.opportunities > 0) {
+        targetTeam.opportunities -= 1;
+        try {
+          await prisma.team.update({
+            where: { id: targetTeam.teamId },
+            data: { circoOpportunities: targetTeam.opportunities },
+          });
+        } catch (err) {
+          console.error('[ERROR] Error al persistir reduccion de oportunidades en equipo objetivo:', err);
+        }
+
+        console.log(`[INFO] ${currentTeam.name} quito 1 oportunidad a ${targetTeam.name}. Oportunidades restantes: ${targetTeam.opportunities}`);
+        this.broadcast('shark_opportunity_removed', {
+          actorTeamName: currentTeam.name,
+          targetTeamName: targetTeam.name,
+          hadOpportunity: true,
+        });
+      } else {
+        console.log(`[INFO] ${currentTeam.name} selecciono a ${targetTeam.name}, pero dicho equipo no contaba con oportunidades.`);
+        this.broadcast('shark_opportunity_removed', {
+          actorTeamName: currentTeam.name,
+          targetTeamName: targetTeam.name,
+          hadOpportunity: false,
+        });
+      }
+
+      this.clock.setTimeout(() => {
+        this.advanceToNextTurn();
+      }, 2500);
+    });
+
+    // 7. Sincronizacion de movimiento y animaciones de avatar
     const handleMovement = (client: Client, data: { x: number; y: number; z: number; ry: number; animState?: string }) => {
       const p = this.state.players.get(client.sessionId);
       if (p) {
@@ -786,11 +1071,282 @@ export class CircoRoom extends Room<{ state: CircoState }> {
     }, 1000);
   }
 
+  private activateGuessItFlow(currentTeam: CircoTeamSchema): void {
+    if (this.guessItBank.length === 0) {
+      console.warn('[WARN] Banco de Adivinalo vacio en CircoRoom.');
+      this.advanceToNextTurn();
+      return;
+    }
+
+    // 1. Seleccionar registro aleatorio sin repetir hasta agotar el banco
+    let available = this.guessItBank.filter((item) => !this.usedGuessItNumbers.has(item.number));
+    if (available.length === 0) {
+      this.usedGuessItNumbers.clear();
+      available = this.guessItBank;
+    }
+
+    const item = available[Math.floor(Math.random() * available.length)];
+    this.usedGuessItNumbers.add(item.number);
+    this.currentGuessItItem = item;
+
+    // 2. Identificar clientes conectados del equipo en turno
+    const teamClients = this.clients.filter((c) => {
+      const a = c.auth as AuthContext;
+      return a && a.team && a.team.id === currentTeam.teamId;
+    });
+
+    // Buscar companero cuyo userId sea diferente al representante del puesto
+    const candidateClients = teamClients.filter((c) => {
+      const a = c.auth as AuthContext;
+      return a && a.userId !== currentTeam.representativeId;
+    });
+
+    let ordererClient: Client | undefined;
+    if (candidateClients.length > 0) {
+      // Seleccionar un companero aleatorio
+      ordererClient = candidateClients[Math.floor(Math.random() * candidateClients.length)];
+    } else {
+      // Caso borde: equipo de 1 solo integrante activo en sala o solo conectado el representante
+      ordererClient =
+        teamClients.find((c) => (c.auth as AuthContext)?.userId === currentTeam.representativeId) ||
+        teamClients[0] ||
+        this.clients.find((c) => (c.auth as AuthContext)?.userId === currentTeam.representativeId);
+    }
+
+    if (!ordererClient) {
+      console.warn(`[WARN] No se encontro cliente para ordenar la carta Adivinalo en ${currentTeam.name}.`);
+      this.advanceToNextTurn();
+      return;
+    }
+
+    const ordererAuth = ordererClient.auth as AuthContext;
+    this.currentGuessItOrdererId = ordererAuth.userId;
+    const ordererName = `${ordererAuth.user.firstName} ${ordererAuth.user.lastName}`.trim();
+
+    // 3. Separar fragmentos por " & " y mezclar el orden
+    const rawFragments = item.description.split(' & ').map((s) => s.trim());
+    let fragments = [...rawFragments];
+    if (fragments.length > 1) {
+      // Mezclar para asegurar que el jugador deba organizarlos
+      fragments = fragments.sort(() => Math.random() - 0.5);
+    }
+
+    // 4. Iniciar Fase 1: GUESS_IT_ORDERING
+    this.state.turnStep = 'GUESS_IT_ORDERING';
+    this.state.questionTimeRemaining = env.CIRCO_GUESS_IT_TIME_SECONDS;
+
+    console.log(`[INFO] Carta Adivinalo #${item.number} iniciada para ${currentTeam.name}. Ordenador: ${ordererName} (${ordererAuth.userId})`);
+
+    // Notificar al ordenador con los fragmentos
+    ordererClient.send('guess_it_order_prompt', {
+      itemNumber: item.number,
+      fragments,
+      timeSeconds: env.CIRCO_GUESS_IT_TIME_SECONDS,
+    });
+
+    // Notificar a todos en la sala quien esta ordenando
+    this.broadcast('guess_it_ordering_started', {
+      teamName: currentTeam.name,
+      ordererName,
+      timeSeconds: env.CIRCO_GUESS_IT_TIME_SECONDS,
+    });
+
+    // 5. Iniciar temporizador regresivo unico para ambas fases de Adivinalo
+    this.questionTimerInterval?.clear();
+    this.questionTimerInterval = this.clock.setInterval(() => {
+      if (this.state.turnStep !== 'GUESS_IT_ORDERING' && this.state.turnStep !== 'GUESS_IT_ANSWERING') {
+        this.questionTimerInterval?.clear();
+        return;
+      }
+
+      if (this.state.questionTimeRemaining > 0) {
+        this.state.questionTimeRemaining -= 1;
+      } else {
+        // Tiempo agotado en Fase 1 o Fase 2
+        this.questionTimerInterval?.clear();
+        this.questionTimerInterval = undefined;
+        this.state.questionTimeRemaining = 0;
+        this.currentGuessItItem = null;
+        this.currentGuessItOrdererId = null;
+
+        console.log(`[INFO] Tiempo agotado en carta Adivinalo para ${currentTeam.name}.`);
+
+        this.broadcast('guess_it_timeout', {
+          teamName: currentTeam.name,
+          message: 'Se agoto el tiempo de la carta Adivinalo.',
+        });
+
+        this.clock.setTimeout(() => {
+          this.advanceToNextTurn();
+        }, 2000);
+      }
+    }, 1000);
+  }
+
+  private async advanceTeamProgress(currentTeam: CircoTeamSchema, scoreDelta: number, tokenDelta: number): Promise<void> {
+    currentTeam.score += scoreDelta;
+    currentTeam.tokenPosition += tokenDelta;
+
+    if (currentTeam.tokenPosition >= 5) {
+      currentTeam.tokenPosition = 5;
+      this.state.turnStep = 'CROWN_ANIMATING';
+      this.state.activeCardType = 'CORONA';
+      currentTeam.opportunities += 1;
+
+      try {
+        await prisma.team.update({
+          where: { id: currentTeam.teamId },
+          data: {
+            score: currentTeam.score,
+            circoOpportunities: currentTeam.opportunities,
+            circoTokenPosition: 5,
+          },
+        });
+      } catch (err) {
+        console.error('[ERROR] Error al persistir corona en avance de equipo:', err);
+      }
+
+      console.log(`[INFO] ${currentTeam.name} alcanzo la casilla 5 (meta) y gano OPORTUNIDAD #${currentTeam.opportunities}!`);
+
+      this.broadcast('opportunity_earned', {
+        teamName: currentTeam.name,
+        opportunities: currentTeam.opportunities,
+      });
+
+      this.clock.setTimeout(async () => {
+        currentTeam.tokenPosition = 0;
+        try {
+          await prisma.team.update({
+            where: { id: currentTeam.teamId },
+            data: { circoTokenPosition: 0 },
+          });
+        } catch (err) {
+          console.error('[ERROR] Error al reiniciar posicion de ficha tras corona:', err);
+        }
+        this.advanceToNextTurn();
+      }, 4000);
+      return;
+    }
+
+    try {
+      await prisma.team.update({
+        where: { id: currentTeam.teamId },
+        data: {
+          score: currentTeam.score,
+          circoTokenPosition: currentTeam.tokenPosition,
+        },
+      });
+    } catch (err) {
+      console.error('[ERROR] Error al persistir avance de equipo en Prisma:', err);
+    }
+
+    this.clock.setTimeout(() => {
+      this.advanceToNextTurn();
+    }, 2500);
+  }
+
+  private activateSharkFlow(currentTeam: CircoTeamSchema, cardType: string): void {
+    const sharkOptions = [
+      { option: 'REMOVE_OPPORTUNITY', label: 'Eliminar una oportunidad' },
+      { option: 'INCREMENT_ONE', label: 'Incrementar en uno' },
+      { option: 'INCREMENT_TWO', label: 'Incrementar en dos' },
+      { option: 'PASS_TURN', label: 'Ceder el turno' },
+    ];
+    const drawn = sharkOptions[Math.floor(Math.random() * sharkOptions.length)];
+
+    console.log(`[INFO] Carta Tiburon (${cardType}) sorteada para ${currentTeam.name}: ${drawn.label} (${drawn.option})`);
+
+    this.broadcast('shark_option_drawn', {
+      teamName: currentTeam.name,
+      cardType,
+      option: drawn.option,
+      optionLabel: drawn.label,
+    });
+
+    if (drawn.option === 'REMOVE_OPPORTUNITY') {
+      const availableTeams = Array.from(this.state.teams.values())
+        .filter((t) => t.teamId !== currentTeam.teamId)
+        .map((t) => ({
+          teamId: t.teamId,
+          name: t.name,
+          color: t.color,
+          opportunities: t.opportunities,
+        }));
+
+      if (availableTeams.length === 0) {
+        console.log(`[INFO] No hay otros equipos disponibles para remover oportunidad.`);
+        this.clock.setTimeout(() => {
+          this.advanceToNextTurn();
+        }, 2500);
+        return;
+      }
+
+      this.state.turnStep = 'SHARK_SELECTING_TARGET';
+      this.state.questionTimeRemaining = env.CIRCO_SHARK_LETTER_TIME_SECONDS;
+
+      // Buscar al cliente representante del equipo en turno
+      let repClient: Client | null = null;
+      for (const client of this.clients) {
+        const auth = client.auth as AuthContext;
+        if (auth && auth.userId === currentTeam.representativeId) {
+          repClient = client;
+          break;
+        }
+      }
+
+      if (repClient) {
+        repClient.send('shark_select_target_prompt', {
+          cardType,
+          availableTeams,
+          timeSeconds: env.CIRCO_SHARK_LETTER_TIME_SECONDS,
+        });
+      }
+
+      this.questionTimerInterval?.clear();
+      this.questionTimerInterval = this.clock.setInterval(() => {
+        if (this.state.turnStep !== 'SHARK_SELECTING_TARGET') {
+          this.questionTimerInterval?.clear();
+          return;
+        }
+
+        if (this.state.questionTimeRemaining > 0) {
+          this.state.questionTimeRemaining -= 1;
+        } else {
+          this.questionTimerInterval?.clear();
+          this.questionTimerInterval = undefined;
+          this.state.questionTimeRemaining = 0;
+
+          console.log(`[INFO] Tiempo agotado para seleccion de equipo en carta Tiburon (${currentTeam.name}).`);
+          this.broadcast('shark_timeout', {
+            teamName: currentTeam.name,
+            message: 'Se agoto el tiempo para seleccionar el equipo objetivo.',
+          });
+
+          this.clock.setTimeout(() => {
+            this.advanceToNextTurn();
+          }, 2000);
+        }
+      }, 1000);
+    } else if (drawn.option === 'INCREMENT_ONE') {
+      this.advanceTeamProgress(currentTeam, 1, 1);
+    } else if (drawn.option === 'INCREMENT_TWO') {
+      this.advanceTeamProgress(currentTeam, 2, 2);
+    } else if (drawn.option === 'PASS_TURN') {
+      this.clock.setTimeout(() => {
+        this.advanceToNextTurn();
+      }, 2500);
+    }
+  }
+
   private advanceToNextTurn(): void {
+    this.questionTimerInterval?.clear();
+    this.questionTimerInterval = undefined;
     this.state.turnStep = 'IDLE';
     this.state.activeCardType = '';
     this.state.questionTimeRemaining = 0;
     this.currentActiveQuestionId = null;
+    this.currentGuessItItem = null;
+    this.currentGuessItOrdererId = null;
 
     const totalTeams = this.state.teams.size;
     if (totalTeams > 0) {

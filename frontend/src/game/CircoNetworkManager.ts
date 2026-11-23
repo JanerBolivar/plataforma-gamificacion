@@ -44,6 +44,55 @@ export interface QuestionResultPayload {
   tokenPosition?: number;
 }
 
+export interface GuessItOrderPromptPayload {
+  itemNumber: number;
+  fragments: string[];
+  timeSeconds: number;
+}
+
+export interface GuessItAnswerPromptPayload {
+  itemNumber: number;
+  orderedPhrase: string;
+  timeSeconds: number;
+}
+
+export interface GuessItResultPayload {
+  correct: boolean;
+  teamName: string;
+  concept?: string;
+  score?: number;
+  tokenPosition?: number;
+}
+
+export interface SharkOptionDrawnPayload {
+  teamName: string;
+  cardType: string;
+  option: string;
+  optionLabel: string;
+}
+
+export interface SharkSelectTargetPromptPayload {
+  cardType: string;
+  availableTeams: Array<{
+    teamId: string;
+    name: string;
+    color: string;
+    opportunities: number;
+  }>;
+  timeSeconds: number;
+}
+
+export interface SharkOpportunityRemovedPayload {
+  actorTeamName: string;
+  targetTeamName: string;
+  hadOpportunity: boolean;
+}
+
+export interface SharkTimeoutPayload {
+  teamName: string;
+  message: string;
+}
+
 /**
  * Gestor de comunicacion en tiempo real para el escenario "Circo" con Colyseus.
  */
@@ -93,6 +142,16 @@ export class CircoNetworkManager {
   public onQuestionStarted?: (payload: QuestionDataPayload) => void;
   public onQuestionResult?: (payload: QuestionResultPayload) => void;
   public onQuestionTimeout?: (payload: { teamName: string; message: string }) => void;
+  public onGuessItOrderPrompt?: (payload: GuessItOrderPromptPayload) => void;
+  public onGuessItAnswerPrompt?: (payload: GuessItAnswerPromptPayload) => void;
+  public onGuessItOrderingStarted?: (payload: { teamName: string; ordererName: string; timeSeconds: number }) => void;
+  public onGuessItAnsweringStarted?: (payload: { teamName: string; representativeName: string }) => void;
+  public onGuessItResult?: (payload: GuessItResultPayload) => void;
+  public onGuessItTimeout?: (payload: { teamName: string; message: string }) => void;
+  public onSharkOptionDrawn?: (payload: SharkOptionDrawnPayload) => void;
+  public onSharkSelectTargetPrompt?: (payload: SharkSelectTargetPromptPayload) => void;
+  public onSharkOpportunityRemoved?: (payload: SharkOpportunityRemovedPayload) => void;
+  public onSharkTimeout?: (payload: SharkTimeoutPayload) => void;
   public onOpportunityEarned?: (payload: { teamName: string; opportunities: number }) => void;
   public onMatchFinished?: (payload: { message: string }) => void;
   public onMatchTerminated?: (payload: { message: string }) => void;
@@ -174,6 +233,46 @@ export class CircoNetworkManager {
 
     room.onMessage('question_timeout', (payload) => {
       if (this.onQuestionTimeout) this.onQuestionTimeout(payload);
+    });
+
+    room.onMessage('guess_it_order_prompt', (payload: GuessItOrderPromptPayload) => {
+      if (this.onGuessItOrderPrompt) this.onGuessItOrderPrompt(payload);
+    });
+
+    room.onMessage('guess_it_answer_prompt', (payload: GuessItAnswerPromptPayload) => {
+      if (this.onGuessItAnswerPrompt) this.onGuessItAnswerPrompt(payload);
+    });
+
+    room.onMessage('guess_it_ordering_started', (payload: { teamName: string; ordererName: string; timeSeconds: number }) => {
+      if (this.onGuessItOrderingStarted) this.onGuessItOrderingStarted(payload);
+    });
+
+    room.onMessage('guess_it_answering_started', (payload: { teamName: string; representativeName: string }) => {
+      if (this.onGuessItAnsweringStarted) this.onGuessItAnsweringStarted(payload);
+    });
+
+    room.onMessage('guess_it_result', (payload: GuessItResultPayload) => {
+      if (this.onGuessItResult) this.onGuessItResult(payload);
+    });
+
+    room.onMessage('guess_it_timeout', (payload: { teamName: string; message: string }) => {
+      if (this.onGuessItTimeout) this.onGuessItTimeout(payload);
+    });
+
+    room.onMessage('shark_option_drawn', (payload: SharkOptionDrawnPayload) => {
+      if (this.onSharkOptionDrawn) this.onSharkOptionDrawn(payload);
+    });
+
+    room.onMessage('shark_select_target_prompt', (payload: SharkSelectTargetPromptPayload) => {
+      if (this.onSharkSelectTargetPrompt) this.onSharkSelectTargetPrompt(payload);
+    });
+
+    room.onMessage('shark_opportunity_removed', (payload: SharkOpportunityRemovedPayload) => {
+      if (this.onSharkOpportunityRemoved) this.onSharkOpportunityRemoved(payload);
+    });
+
+    room.onMessage('shark_timeout', (payload: SharkTimeoutPayload) => {
+      if (this.onSharkTimeout) this.onSharkTimeout(payload);
     });
 
     room.onMessage('opportunity_earned', (payload) => {
@@ -396,6 +495,21 @@ export class CircoNetworkManager {
   public answerQuestion(questionId: number, selectedOption: string): void {
     if (!this.room) return;
     this.room.send('answer_question', { questionId, selectedOption });
+  }
+
+  public sendGuessItOrder(orderedFragments: string[]): void {
+    if (!this.room) return;
+    this.room.send('submit_guess_it_order', { orderedFragments });
+  }
+
+  public sendGuessItAnswer(concept: string): void {
+    if (!this.room) return;
+    this.room.send('submit_guess_it_answer', { concept });
+  }
+
+  public sendSharkTarget(targetTeamId: string): void {
+    if (!this.room) return;
+    this.room.send('submit_shark_target', { targetTeamId });
   }
 
   public sendMove(x: number, y: number, z: number, ry: number, animState: string): void {

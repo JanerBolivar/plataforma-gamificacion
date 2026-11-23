@@ -7,6 +7,7 @@ import {
   CircoTeamState,
   QuestionDataPayload,
   QuestionResultPayload,
+  SharkSelectTargetPromptPayload,
 } from '../../game/CircoNetworkManager';
 import { matchService } from '../../services/match.service';
 import { MatchLobbyDetails } from '../../types/match';
@@ -22,6 +23,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +42,12 @@ import {
   Clock,
   Compass,
   Armchair,
+  ChevronUp,
+  ChevronDown,
+  GripVertical,
+  Send,
+  Puzzle,
+  ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -75,6 +83,29 @@ export const CircoPage: React.FC = () => {
   const [teams, setTeams] = useState<CircoTeamState[]>([]);
   const [activeQuestion, setActiveQuestion] = useState<QuestionDataPayload | null>(null);
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState<boolean>(false);
+
+  // Estados para Carta Adivínalo (Fase 1: Ordenar pista, Fase 2: Ingresar concepto)
+  const [guessItOrderPrompt, setGuessItOrderPrompt] = useState<{
+    itemNumber: number;
+    fragments: string[];
+    timeSeconds: number;
+  } | null>(null);
+  const [orderedFragments, setOrderedFragments] = useState<string[]>([]);
+  const [draggedFragmentIndex, setDraggedFragmentIndex] = useState<number | null>(null);
+
+  const [guessItAnswerPrompt, setGuessItAnswerPrompt] = useState<{
+    itemNumber: number;
+    orderedPhrase: string;
+    timeSeconds: number;
+  } | null>(null);
+  const [guessItConceptInput, setGuessItConceptInput] = useState<string>('');
+  const [isSubmittingGuessIt, setIsSubmittingGuessIt] = useState<boolean>(false);
+
+  const [guessItStatusMessage, setGuessItStatusMessage] = useState<{ teamName: string; text: string } | null>(null);
+
+  // Estados para Cartas de Tiburon (Eliminar una oportunidad)
+  const [sharkSelectTargetPrompt, setSharkSelectTargetPrompt] = useState<SharkSelectTargetPromptPayload | null>(null);
+  const [isSubmittingSharkTarget, setIsSubmittingSharkTarget] = useState<boolean>(false);
 
   // Proximidad e interaccion contextual (tecla E)
   const [nearbyPrompt, setNearbyPrompt] = useState<string | null>(null);
@@ -249,16 +280,16 @@ export const CircoPage: React.FC = () => {
   const handleResumeGame = useCallback(() => {
     setIsMenuOpen(false);
     const canvas = canvasContainerRef.current?.querySelector('canvas');
-    if (canvas && !isEditorActive && !activeQuestion) {
+    if (canvas && !isEditorActive && !activeQuestion && !guessItOrderPrompt && !guessItAnswerPrompt && !sharkSelectTargetPrompt) {
       canvas.requestPointerLock();
     }
-  }, [isEditorActive, activeQuestion]);
+  }, [isEditorActive, activeQuestion, guessItOrderPrompt, guessItAnswerPrompt, sharkSelectTargetPrompt]);
 
   // Manejar teclado para pausa, interaccion E y deseleccion en editor
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Tecla E para interaccion contextual
-      if (e.code === 'KeyE' && !isMenuOpen && !isEditorActive && !activeQuestion) {
+      if (e.code === 'KeyE' && !isMenuOpen && !isEditorActive && !activeQuestion && !guessItOrderPrompt && !guessItAnswerPrompt && !sharkSelectTargetPrompt) {
         if (currentInteractableRef.current) {
           e.preventDefault();
           if (currentInteractableRef.current.type === 'claim_seat' && currentInteractableRef.current.seat) {
@@ -310,7 +341,7 @@ export const CircoPage: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown, { capture: true });
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [isEditorActive, selectedObjectDef, isMenuOpen, handleResumeGame, openMenu, activeQuestion]);
+  }, [isEditorActive, selectedObjectDef, isMenuOpen, handleResumeGame, openMenu, activeQuestion, guessItOrderPrompt, guessItAnswerPrompt, sharkSelectTargetPrompt]);
 
   // Inicializar escena 3D y conexion multijugador Colyseus
   useEffect(() => {
@@ -398,6 +429,12 @@ export const CircoPage: React.FC = () => {
         scene.clearActiveCard();
         setActiveQuestion(null);
         setIsSubmittingAnswer(false);
+        setGuessItOrderPrompt(null);
+        setGuessItAnswerPrompt(null);
+        setGuessItStatusMessage(null);
+        setIsSubmittingGuessIt(false);
+        setSharkSelectTargetPrompt(null);
+        setIsSubmittingSharkTarget(false);
       }
     };
 
@@ -456,6 +493,100 @@ export const CircoPage: React.FC = () => {
       setIsSubmittingAnswer(false);
     };
 
+    nm.onGuessItOrderPrompt = (payload) => {
+      setGuessItOrderPrompt(payload);
+      setOrderedFragments([...payload.fragments]);
+      setIsSubmittingGuessIt(false);
+      scene.setActiveCard('ADIVINALO');
+
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    };
+
+    nm.onGuessItAnswerPrompt = (payload) => {
+      setGuessItAnswerPrompt(payload);
+      setGuessItConceptInput('');
+      setIsSubmittingGuessIt(false);
+      scene.setActiveCard('ADIVINALO');
+
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    };
+
+    nm.onGuessItOrderingStarted = (payload) => {
+      setGuessItStatusMessage({
+        teamName: payload.teamName,
+        text: `${payload.ordererName} está ordenando la pista para su equipo...`,
+      });
+      scene.setActiveCard('ADIVINALO');
+    };
+
+    nm.onGuessItAnsweringStarted = (payload) => {
+      setGuessItOrderPrompt(null);
+      setGuessItStatusMessage({
+        teamName: payload.teamName,
+        text: `${payload.representativeName} está ingresando el concepto...`,
+      });
+    };
+
+    nm.onGuessItResult = (payload) => {
+      setGuessItOrderPrompt(null);
+      setGuessItAnswerPrompt(null);
+      setGuessItStatusMessage(null);
+      setIsSubmittingGuessIt(false);
+
+      if (payload.correct) {
+        scene.soundManager.playCorrectAnswerSound();
+        toast.success(`Desafío Adivínalo acertado por ${payload.teamName}! Concepto: "${payload.concept}" (+1 punto)`);
+      } else {
+        scene.soundManager.playIncorrectAnswerSound();
+        toast.error(`Desafío Adivínalo fallido por ${payload.teamName}`);
+      }
+    };
+
+    nm.onGuessItTimeout = (payload) => {
+      scene.soundManager.playTimeoutSound();
+      toast.warning(`${payload.teamName}: ${payload.message}`);
+      setGuessItOrderPrompt(null);
+      setGuessItAnswerPrompt(null);
+      setGuessItStatusMessage(null);
+      setIsSubmittingGuessIt(false);
+    };
+
+    nm.onSharkOptionDrawn = (payload) => {
+      const sharkTitle = payload.cardType === 'TIBURON_ROJO' ? 'Tiburón Rojo' : 'Tiburón Azul';
+      toast.info(`Carta ${sharkTitle}: ${payload.optionLabel} (${payload.teamName})`);
+    };
+
+    nm.onSharkSelectTargetPrompt = (payload) => {
+      setSharkSelectTargetPrompt(payload);
+      setIsSubmittingSharkTarget(false);
+      scene.setActiveCard(payload.cardType);
+
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    };
+
+    nm.onSharkOpportunityRemoved = (payload) => {
+      setSharkSelectTargetPrompt(null);
+      setIsSubmittingSharkTarget(false);
+      if (payload.hadOpportunity) {
+        toast.warning(`${payload.actorTeamName} le quitó una oportunidad a ${payload.targetTeamName}`);
+      } else {
+        toast.info(`${payload.actorTeamName} seleccionó a ${payload.targetTeamName}, pero no contaba con oportunidades`);
+      }
+    };
+
+    nm.onSharkTimeout = (payload) => {
+      scene.soundManager.playTimeoutSound();
+      toast.warning(`${payload.teamName}: ${payload.message}`);
+      setSharkSelectTargetPrompt(null);
+      setIsSubmittingSharkTarget(false);
+    };
+
     nm.onOpportunityEarned = (payload) => {
       toast.success(`${payload.teamName} ha completado el circuito y gano la Oportunidad #${payload.opportunities}!`, {
         duration: 5000,
@@ -496,6 +627,58 @@ export const CircoPage: React.FC = () => {
       networkManagerRef.current?.answerQuestion(activeQuestion.questionId, selectedOption);
     },
     [activeQuestion, isSubmittingAnswer, questionTimeRemaining]
+  );
+
+  // Reordenar fragmentos arrastrados (HTML5 Drag & Drop)
+  const handleDropFragment = (targetIndex: number) => {
+    if (draggedFragmentIndex === null || draggedFragmentIndex === targetIndex) return;
+    setOrderedFragments((prev) => {
+      const copy = [...prev];
+      const [draggedItem] = copy.splice(draggedFragmentIndex, 1);
+      copy.splice(targetIndex, 0, draggedItem);
+      return copy;
+    });
+    setDraggedFragmentIndex(null);
+  };
+
+  // Mover fragmento arriba o abajo mediante botones accesibles
+  const handleMoveFragment = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === orderedFragments.length - 1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    setOrderedFragments((prev) => {
+      const copy = [...prev];
+      const temp = copy[index];
+      copy[index] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return copy;
+    });
+  };
+
+  // Enviar fragmentos ordenados al servidor (Fase 1)
+  const handleSubmitGuessItOrder = useCallback(() => {
+    if (isSubmittingGuessIt || questionTimeRemaining <= 0 || orderedFragments.length === 0) return;
+    setIsSubmittingGuessIt(true);
+    networkManagerRef.current?.sendGuessItOrder(orderedFragments);
+    setGuessItOrderPrompt(null);
+  }, [isSubmittingGuessIt, questionTimeRemaining, orderedFragments]);
+
+  // Enviar concepto de Adivínalo al servidor (Fase 2)
+  const handleSubmitGuessItAnswer = useCallback(() => {
+    if (isSubmittingGuessIt || questionTimeRemaining <= 0 || !guessItConceptInput.trim()) return;
+    setIsSubmittingGuessIt(true);
+    networkManagerRef.current?.sendGuessItAnswer(guessItConceptInput.trim());
+  }, [isSubmittingGuessIt, questionTimeRemaining, guessItConceptInput]);
+
+  // Enviar seleccion de equipo rival en carta de Tiburon
+  const handleSelectSharkTarget = useCallback(
+    (targetTeamId: string) => {
+      if (isSubmittingSharkTarget || questionTimeRemaining <= 0) return;
+      setIsSubmittingSharkTarget(true);
+      networkManagerRef.current?.sendSharkTarget(targetTeamId);
+      setSharkSelectTargetPrompt(null);
+    },
+    [isSubmittingSharkTarget, questionTimeRemaining]
   );
 
   // Girar la ruleta
@@ -788,6 +971,367 @@ export const CircoPage: React.FC = () => {
                   Esperando respuesta del representante de {activeQuestion.teamName}...
                 </p>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Panel de Ordenamiento - Fase 1 de Adivinalo */}
+      {!loadingAssets && guessItOrderPrompt && (
+        <div className="absolute top-16 right-4 z-50 w-[460px] max-w-[92vw] pointer-events-auto">
+          <Card className="bg-slate-900/95 backdrop-blur-md border-amber-500/50 shadow-2xl text-slate-100">
+            <CardHeader className="pb-3 border-b border-slate-800">
+              <div className="flex items-center justify-between">
+                <Badge className="bg-amber-600 text-white text-xs px-2.5 py-0.5">
+                  <Puzzle className="w-3.5 h-3.5 mr-1 inline" />
+                  Carta Adivínalo — Ordenar Pista
+                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Clock
+                    className={`w-3.5 h-3.5 ${
+                      questionTimeRemaining <= 15 ? 'text-red-400' : 'text-amber-400'
+                    }`}
+                  />
+                  <span
+                    className={`font-mono font-bold text-sm ${
+                      questionTimeRemaining <= 15 ? 'text-red-400 animate-pulse' : 'text-amber-300'
+                    }`}
+                  >
+                    {questionTimeRemaining}s
+                  </span>
+                </div>
+              </div>
+              <Progress
+                value={Math.max(
+                  0,
+                  (questionTimeRemaining / (guessItOrderPrompt.timeSeconds || 90)) * 100
+                )}
+                className={`h-1.5 mt-2 ${
+                  questionTimeRemaining <= 15
+                    ? 'bg-red-950 [&>div]:bg-red-500'
+                    : 'bg-slate-800 [&>div]:bg-amber-400'
+                }`}
+              />
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                Arrastre o use las flechas para ordenar los fragmentos de la frase y habilitar a su representante.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-3 pt-3">
+              <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                {orderedFragments.map((frag, idx) => (
+                  <div
+                    key={idx}
+                    draggable={!isSubmittingGuessIt && questionTimeRemaining > 0}
+                    onDragStart={() => setDraggedFragmentIndex(idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleDropFragment(idx)}
+                    className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-800 bg-slate-950/70 hover:border-amber-500/40 transition-colors cursor-grab active:cursor-grabbing text-xs text-slate-200 select-none"
+                  >
+                    <GripVertical className="w-4 h-4 text-slate-500 shrink-0" />
+                    <span className="font-mono text-[11px] font-bold text-amber-400 shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <span className="flex-1 leading-snug break-words">
+                      {frag}
+                    </span>
+                    <div className="flex flex-col gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={idx === 0 || isSubmittingGuessIt || questionTimeRemaining <= 0}
+                        onClick={() => handleMoveFragment(idx, 'up')}
+                        className="h-5 w-5 text-slate-400 hover:text-white hover:bg-slate-800"
+                        title="Subir"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={idx === orderedFragments.length - 1 || isSubmittingGuessIt || questionTimeRemaining <= 0}
+                        onClick={() => handleMoveFragment(idx, 'down')}
+                        className="h-5 w-5 text-slate-400 hover:text-white hover:bg-slate-800"
+                        title="Bajar"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={handleSubmitGuessItOrder}
+                  disabled={isSubmittingGuessIt || questionTimeRemaining <= 0 || orderedFragments.length === 0}
+                  className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs gap-1.5 shadow-md shadow-amber-600/20"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Siguiente (Enviar Frase Ordenada)
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Panel de Respuesta - Fase 2 de Adivinalo (Representante en el puesto) */}
+      {!loadingAssets && guessItAnswerPrompt && (
+        <div className="absolute top-16 right-4 z-50 w-[440px] max-w-[92vw] pointer-events-auto">
+          <Card className="bg-slate-900/95 backdrop-blur-md border-amber-500/50 shadow-2xl text-slate-100">
+            <CardHeader className="pb-3 border-b border-slate-800">
+              <div className="flex items-center justify-between">
+                <Badge className="bg-amber-600 text-white text-xs px-2.5 py-0.5">
+                  <Puzzle className="w-3.5 h-3.5 mr-1 inline" />
+                  Carta Adivínalo — Ingresar Concepto
+                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Clock
+                    className={`w-3.5 h-3.5 ${
+                      questionTimeRemaining <= 15 ? 'text-red-400' : 'text-amber-400'
+                    }`}
+                  />
+                  <span
+                    className={`font-mono font-bold text-sm ${
+                      questionTimeRemaining <= 15 ? 'text-red-400 animate-pulse' : 'text-amber-300'
+                    }`}
+                  >
+                    {questionTimeRemaining}s
+                  </span>
+                </div>
+              </div>
+              <Progress
+                value={Math.max(
+                  0,
+                  (questionTimeRemaining / (guessItAnswerPrompt.timeSeconds || 90)) * 100
+                )}
+                className={`h-1.5 mt-2 ${
+                  questionTimeRemaining <= 15
+                    ? 'bg-red-950 [&>div]:bg-red-500'
+                    : 'bg-slate-800 [&>div]:bg-amber-400'
+                }`}
+              />
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                Su compañero ha organizado la pista. Escriba el concepto que corresponde a la definición.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-3.5 pt-3">
+              <div className="p-3 rounded-lg border border-amber-500/30 bg-slate-950/80 text-xs leading-relaxed text-amber-200/90 italic">
+                "{guessItAnswerPrompt.orderedPhrase}"
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-slate-300">
+                  Concepto:
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Escriba el concepto (respete mayúsculas y tildes)"
+                  value={guessItConceptInput}
+                  onChange={(e) => setGuessItConceptInput(e.target.value)}
+                  disabled={isSubmittingGuessIt || questionTimeRemaining <= 0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSubmitGuessItAnswer();
+                  }}
+                  className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 text-xs h-9"
+                  autoFocus
+                />
+                <p className="text-[10px] text-slate-400 italic">
+                  Atención: La validación es estricta. Respete mayúsculas y tildes.
+                </p>
+              </div>
+
+              <Button
+                onClick={handleSubmitGuessItAnswer}
+                disabled={isSubmittingGuessIt || questionTimeRemaining <= 0 || !guessItConceptInput.trim()}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-md shadow-emerald-600/20"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Responder Desafío
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Aviso informativo de Adivinalo para los demas jugadores en la sala */}
+      {!loadingAssets && !guessItOrderPrompt && !guessItAnswerPrompt && (turnStep === 'GUESS_IT_ORDERING' || turnStep === 'GUESS_IT_ANSWERING') && (
+        <div className="absolute top-16 right-4 z-50 w-[380px] max-w-[92vw] pointer-events-auto">
+          <Card className="bg-slate-900/95 backdrop-blur-md border-amber-500/40 shadow-xl text-slate-100">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <Badge className="bg-amber-600 text-white text-xs px-2.5 py-0.5">
+                  <Puzzle className="w-3.5 h-3.5 mr-1 inline" />
+                  Carta Adivínalo
+                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Clock
+                    className={`w-3.5 h-3.5 ${
+                      questionTimeRemaining <= 15 ? 'text-red-400' : 'text-amber-400'
+                    }`}
+                  />
+                  <span
+                    className={`font-mono font-bold text-sm ${
+                      questionTimeRemaining <= 15 ? 'text-red-400 animate-pulse' : 'text-amber-300'
+                    }`}
+                  >
+                    {questionTimeRemaining}s
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-1 pb-3 text-xs text-slate-300">
+              {guessItStatusMessage ? (
+                <p className="leading-relaxed">
+                  <strong className="text-amber-300">{guessItStatusMessage.teamName}:</strong>{' '}
+                  {guessItStatusMessage.text}
+                </p>
+              ) : turnStep === 'GUESS_IT_ORDERING' ? (
+                <p className="leading-relaxed">
+                  Un compañero del equipo en turno está ordenando los fragmentos de la pista...
+                </p>
+              ) : (
+                <p className="leading-relaxed">
+                  El representante en el puesto está ingresando el concepto correspondiente...
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Panel de Seleccion de Equipo Objetivo - Carta Tiburon */}
+      {!loadingAssets && sharkSelectTargetPrompt && (
+        <div className="absolute top-16 right-4 z-50 w-[460px] max-w-[92vw] pointer-events-auto">
+          <Card
+            className={`bg-slate-900/95 backdrop-blur-md shadow-2xl text-slate-100 ${
+              sharkSelectTargetPrompt.cardType === 'TIBURON_ROJO'
+                ? 'border-red-500/50'
+                : 'border-cyan-500/50'
+            }`}
+          >
+            <CardHeader className="pb-3 border-b border-slate-800">
+              <div className="flex items-center justify-between">
+                <Badge
+                  className={`text-white text-xs px-2.5 py-0.5 ${
+                    sharkSelectTargetPrompt.cardType === 'TIBURON_ROJO'
+                      ? 'bg-red-600'
+                      : 'bg-cyan-600'
+                  }`}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 mr-1 inline" />
+                  {sharkSelectTargetPrompt.cardType === 'TIBURON_ROJO'
+                    ? 'Carta Tiburón Rojo — Eliminar Oportunidad'
+                    : 'Carta Tiburón Azul — Eliminar Oportunidad'}
+                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Clock
+                    className={`w-3.5 h-3.5 ${
+                      questionTimeRemaining <= 15 ? 'text-red-400' : 'text-cyan-400'
+                    }`}
+                  />
+                  <span
+                    className={`font-mono font-bold text-sm ${
+                      questionTimeRemaining <= 15 ? 'text-red-400 animate-pulse' : 'text-cyan-300'
+                    }`}
+                  >
+                    {questionTimeRemaining}s
+                  </span>
+                </div>
+              </div>
+              <Progress
+                value={Math.max(
+                  0,
+                  (questionTimeRemaining / (sharkSelectTargetPrompt.timeSeconds || 90)) * 100
+                )}
+                className={`h-1.5 mt-2 ${
+                  questionTimeRemaining <= 15
+                    ? 'bg-red-950 [&>div]:bg-red-500'
+                    : sharkSelectTargetPrompt.cardType === 'TIBURON_ROJO'
+                    ? 'bg-slate-800 [&>div]:bg-red-500'
+                    : 'bg-slate-800 [&>div]:bg-cyan-500'
+                }`}
+              />
+              <CardTitle className="text-sm font-semibold text-slate-200 mt-2">
+                Selecciona un equipo rival
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-400 mt-1">
+                Elige al equipo al que deseas retirarle una oportunidad acumulada:
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 pb-3 space-y-2">
+              {sharkSelectTargetPrompt.availableTeams.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No hay otros equipos rivales disponibles.</p>
+              ) : (
+                sharkSelectTargetPrompt.availableTeams.map((target) => (
+                  <div
+                    key={target.teamId}
+                    className="flex items-center justify-between p-3 rounded-lg border border-slate-700/60 bg-slate-800/60 hover:bg-slate-800 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: target.color }}
+                      />
+                      <div className="truncate">
+                        <p className="text-sm font-medium text-slate-100 truncate">{target.name}</p>
+                        <p className="text-xs text-slate-400">
+                          Oportunidades actuales:{' '}
+                          <strong className="text-amber-400">{target.opportunities}</strong>
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs h-8 flex-shrink-0"
+                      disabled={isSubmittingSharkTarget || questionTimeRemaining <= 0}
+                      onClick={() => handleSelectSharkTarget(target.teamId)}
+                    >
+                      Seleccionar
+                    </Button>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Banner Informativo para la sala durante Carta Tiburon */}
+      {!loadingAssets && !sharkSelectTargetPrompt && turnStep === 'SHARK_SELECTING_TARGET' && (
+        <div className="absolute top-16 right-4 z-40 w-[420px] max-w-[90vw] pointer-events-none">
+          <Card className="bg-slate-900/90 backdrop-blur-md border-cyan-500/40 shadow-xl text-slate-100">
+            <CardHeader className="py-2.5 px-4 border-b border-slate-800">
+              <div className="flex items-center justify-between">
+                <Badge className="bg-cyan-700 text-white text-xs px-2 py-0.5">
+                  <ShieldAlert className="w-3 h-3 mr-1 inline" />
+                  Carta Tiburón — En Proceso
+                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Clock
+                    className={`w-3.5 h-3.5 ${
+                      questionTimeRemaining <= 15 ? 'text-red-400' : 'text-cyan-400'
+                    }`}
+                  />
+                  <span
+                    className={`font-mono font-bold text-xs ${
+                      questionTimeRemaining <= 15 ? 'text-red-400 animate-pulse' : 'text-cyan-300'
+                    }`}
+                  >
+                    {questionTimeRemaining}s
+                  </span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-slate-300 leading-relaxed">
+                El representante del equipo en turno está decidiendo a qué equipo rival restarle una oportunidad...
+              </p>
             </CardContent>
           </Card>
         </div>

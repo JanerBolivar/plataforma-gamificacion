@@ -22,6 +22,8 @@ const envSchema = z.object({
   SWAMP_TIME_MINUTES: z.string().default('15').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
   CIRCO_TIME_MINUTES: z.string().default('30').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
   CIRCO_QUESTION_TIME_SECONDS: z.string().default('30').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
+  CIRCO_GUESS_IT_TIME_SECONDS: z.string().default('90').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
+  CIRCO_SHARK_LETTER_TIME_SECONDS: z.string().default('90').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
 });
 
 const _env = envSchema.safeParse(process.env);

@@ -27,7 +27,7 @@ export class CircoState extends Schema {
   @type('number') timeRemaining: number = 0;
   @type('number') questionTimeRemaining: number = 0;
   @type('number') currentTurnSeat: number = 1;
-  @type('string') turnStep: string = 'IDLE'; // "IDLE" | "SPINNING" | "CARD_ANIMATING" | "QUESTION_ACTIVE" | "CROWN_ANIMATING"
+  @type('string') turnStep: string = 'IDLE'; // "IDLE" | "SPINNING" | "CARD_ANIMATING" | "QUESTION_ACTIVE" | "GUESS_IT_ORDERING" | "GUESS_IT_ANSWERING" | "SHARK_SELECTING_TARGET" | "CROWN_ANIMATING"
   @type('number') arrowRotationY: number = 0;
   @type('string') activeCardType: string = ''; // "" | "PREGUNTA" | "ADIVINALO" | "TIBURON_ROJO" | "TIBURON_AZUL" | "CORONA"
   @type({ map: PlayerSchema }) players = new MapSchema<PlayerSchema>();
