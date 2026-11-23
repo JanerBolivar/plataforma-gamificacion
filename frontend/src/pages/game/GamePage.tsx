@@ -368,6 +368,7 @@ export const GamePage: React.FC = () => {
       };
 
       nm.onTimeExpired = (evt) => {
+        if (networkManagerRef.current !== nm) return;
         toast.error(evt.message || 'Se ha acabado el tiempo de ejecucion. Sera trasladado al escenario Circo.');
         setTimeout(() => {
           if (document.fullscreenElement) {
@@ -378,6 +379,7 @@ export const GamePage: React.FC = () => {
       };
 
       nm.onMatchTerminated = (evt) => {
+        if (networkManagerRef.current !== nm) return;
         toast.error(evt.message || 'La partida ha sido finalizada por un administrador.');
         setTimeout(() => {
           if (document.fullscreenElement) {
@@ -385,6 +387,18 @@ export const GamePage: React.FC = () => {
           }
           navigate('/matches');
         }, 2000);
+      };
+
+      nm.onSessionTerminated = (evt) => {
+        if (networkManagerRef.current !== nm) return;
+        toast.warning(evt.message || 'Se ha detectado otra sesión activa con su usuario. Redirigiendo a partidas...');
+        if (document.pointerLockElement) {
+          document.exitPointerLock?.();
+        }
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+        navigate('/matches', { replace: true });
       };
 
       nm.joinMatch(matchId).catch((err) => {

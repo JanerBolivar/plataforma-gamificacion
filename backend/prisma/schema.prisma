@@ -26,6 +26,13 @@ enum MatchStatus {
   CANCELLED
 }
 
+enum MatchStage {
+  LOBBY
+  SWAMP
+  CIRCO
+  FINISHED
+}
+
 enum InvitationStatus {
   PENDING
   ACCEPTED
@@ -68,6 +75,7 @@ model Match {
   maxTeams       Int
   maxTeamMembers Int                @default(6)
   status         MatchStatus        @default(WAITING)
+  currentStage   MatchStage         @default(LOBBY)
   creatorId      String
   createdAt      DateTime           @default(now())
   startedAt      DateTime?
@@ -99,6 +107,7 @@ model Team {
   id                    String             @id @default(uuid())
   name                  String
   score                 Int                @default(0)
+  swampCompleted        Boolean            @default(false)
   matchId               String
   circoSeat             Int?
   circoRepresentativeId String?

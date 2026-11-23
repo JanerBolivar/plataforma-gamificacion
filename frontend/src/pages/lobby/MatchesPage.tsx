@@ -52,6 +52,18 @@ export const MatchesPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const handleNavigateToMatch = (match: { id: string; status: string; currentStage?: string }) => {
+    if (match.status === 'IN_PROGRESS') {
+      if (match.currentStage === 'CIRCO') {
+        navigate(`/game/${match.id}/circo`);
+      } else {
+        navigate(`/game/${match.id}/pantano`);
+      }
+    } else {
+      navigate(`/matches/${match.id}`);
+    }
+  };
+
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +99,10 @@ export const MatchesPage: React.FC = () => {
   const handleCreateMatch = async () => {
     if (!matchName.trim()) {
       setCreateError('El nombre de la partida es obligatorio.');
+      return;
+    }
+    if (maxTeams < 2 || maxTeams > 6) {
+      setCreateError('La cantidad de equipos debe ser entre 2 y 6.');
       return;
     }
     setCreateLoading(true);
@@ -236,7 +252,7 @@ export const MatchesPage: React.FC = () => {
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate(`/matches/${data.myActiveMatch!.match.id}`)}
+                onClick={() => handleNavigateToMatch(data.myActiveMatch!.match)}
                 className="gap-1.5 text-xs"
               >
                 Volver a la sala
@@ -332,7 +348,7 @@ export const MatchesPage: React.FC = () => {
                       {isMyCurrent ? (
                         <Button
                           size="sm"
-                          onClick={() => navigate(`/matches/${m.id}`)}
+                          onClick={() => handleNavigateToMatch(m)}
                           className="w-full gap-2 text-xs"
                         >
                           Ir a mi sala
@@ -459,9 +475,18 @@ export const MatchesPage: React.FC = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    disabled={m.teamCount < 2}
                                     onClick={() => handleAdminStart(m.id)}
-                                    className="h-8 px-2 text-xs gap-1 border-emerald-500 text-emerald-600"
-                                    title="Iniciar partida"
+                                    className={`h-8 px-2 text-xs gap-1 ${
+                                      m.teamCount < 2
+                                        ? 'opacity-50 cursor-not-allowed text-slate-400 border-slate-300 dark:border-slate-700'
+                                        : 'border-emerald-500 text-emerald-600'
+                                    }`}
+                                    title={
+                                      m.teamCount < 2
+                                        ? 'Se requieren al menos 2 equipos para iniciar la partida'
+                                        : 'Iniciar partida'
+                                    }
                                   >
                                     <Play className="w-3.5 h-3.5" /> Iniciar
                                   </Button>
@@ -530,7 +555,7 @@ export const MatchesPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="max-teams" className="text-xs">Cantidad Maxima de Equipos (1 a 6)</Label>
+              <Label htmlFor="max-teams" className="text-xs">Cantidad Maxima de Equipos (2 a 6)</Label>
               <Select
                 value={maxTeams.toString()}
                 onValueChange={(val) => setMaxTeams(parseInt(val, 10))}
@@ -539,7 +564,6 @@ export const MatchesPage: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 equipo (Individual o cooperativo unico)</SelectItem>
                   <SelectItem value="2">2 equipos</SelectItem>
                   <SelectItem value="3">3 equipos</SelectItem>
                   <SelectItem value="4">4 equipos</SelectItem>

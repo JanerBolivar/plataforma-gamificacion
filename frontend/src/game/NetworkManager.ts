@@ -41,6 +41,10 @@ export interface MatchTerminatedEvent {
   message: string;
 }
 
+export interface SessionTerminatedEvent {
+  message: string;
+}
+
 /**
  * Gestor de comunicacion multijugador en tiempo real mediante Colyseus.
  */
@@ -49,7 +53,8 @@ export class NetworkManager {
   private room: Room | null = null;
   public mySessionId: string | null = null;
 
-  private isConnecting: boolean = false;
+  private isDisposed: boolean = false;
+  private joinPromise: Promise<Room | null> | null = null;
 
   // Control de tasa de envio de movimiento (throttling ~18 FPS)
   private lastMoveSentTime: number = 0;
@@ -66,6 +71,7 @@ export class NetworkManager {
   public onPortalActivated?: (event: PortalActivatedEvent) => void;
   public onTimeExpired?: (event: TimeExpiredEvent) => void;
   public onMatchTerminated?: (event: MatchTerminatedEvent) => void;
+  public onSessionTerminated?: (event: SessionTerminatedEvent) => void;
   public onConnected?: (sessionId: string) => void;
   public onDisconnect?: () => void;
 
@@ -79,29 +85,54 @@ export class NetworkManager {
    * Conecta a la sala de juego Colyseus correspondiente a la partida.
    */
   public async joinMatch(matchId: string): Promise<Room | null> {
-    if (this.room || this.isConnecting) {
-      console.log('[INFO] Ya existe una conexion activa o en curso a Colyseus.');
+    if (this.isDisposed) {
+      console.warn('[WARN] Intento de conectar con un NetworkManager ya desechado.');
+      return null;
+    }
+
+    if (this.room) {
+      console.log('[INFO] Ya existe una conexion activa a Colyseus.');
       return this.room;
     }
 
-    this.isConnecting = true;
-    try {
-      this.room = await this.client.joinOrCreate('swamp_room', { matchId });
-      this.mySessionId = this.room.sessionId;
-      console.log(`[INFO] Conectado a swamp_room (${this.room.roomId}) con sessionId: ${this.mySessionId}`);
+    if (this.joinPromise) {
+      console.log('[INFO] Conexion a Colyseus en progreso. Reutilizando promesa existente.');
+      return this.joinPromise;
+    }
 
-      if (this.onConnected && this.mySessionId) {
-        this.onConnected(this.mySessionId);
+    this.joinPromise = (async () => {
+      try {
+        const room = await this.client.joinOrCreate('swamp_room', { matchId });
+
+        if (this.isDisposed) {
+          console.log('[INFO] Instancia descartada antes de completar conexion. Abandonando sala SwampRoom.');
+          try {
+            room.leave();
+          } catch {}
+          return null;
+        }
+
+        this.room = room;
+        this.mySessionId = room.sessionId;
+        console.log(`[INFO] Conectado a swamp_room (${room.roomId}) con sessionId: ${this.mySessionId}`);
+
+        if (this.onConnected && this.mySessionId) {
+          this.onConnected(this.mySessionId);
+        }
+
+        this.setupRoomListeners();
+        return room;
+      } catch (err) {
+        if (!this.isDisposed) {
+          console.error('[ERROR] Error al conectar a la sala Colyseus:', err);
+        }
+        throw err;
+      } finally {
+        this.joinPromise = null;
       }
+    })();
 
-      this.setupRoomListeners();
-      return this.room;
-    } catch (err) {
-      console.error('[ERROR] Error al conectar a la sala Colyseus:', err);
-      throw err;
-    } finally {
-      this.isConnecting = false;
-    }
+    return this.joinPromise;
   }
 
   private setupRoomListeners(): void {
@@ -311,9 +342,17 @@ export class NetworkManager {
       }
     });
 
+    this.room.onMessage('session_terminated', (msg: SessionTerminatedEvent) => {
+      if (this.isDisposed) return;
+      console.log('[WARN] Sesion terminada por nueva conexion externa:', msg.message);
+      if (this.onSessionTerminated) {
+        this.onSessionTerminated(msg);
+      }
+    });
+
     this.room.onLeave(() => {
       console.log('[INFO] Desconectado de la sala Colyseus.');
-      if (this.onDisconnect) {
+      if (!this.isDisposed && this.onDisconnect) {
         this.onDisconnect();
       }
     });
@@ -323,7 +362,7 @@ export class NetworkManager {
    * Envia las coordenadas locales del jugador con control de frecuencia (throttling).
    */
   public sendMove(x: number, y: number, z: number, ry: number, animState: string): void {
-    if (!this.room) return;
+    if (!this.room || this.isDisposed) return;
 
     const now = performance.now();
     if (now - this.lastMoveSentTime < 55) {
@@ -356,14 +395,36 @@ export class NetworkManager {
    * Envia la solicitud de recoleccion de una carta al servidor autoritativo.
    */
   public sendCollect(collectibleId: string): void {
-    if (!this.room) return;
+    if (!this.room || this.isDisposed) return;
     this.room.send('collect', { collectibleId });
   }
 
   public leave(): void {
+    this.isDisposed = true;
+
+    // Desvincular callbacks para evitar invocaciones residuales tras desmontar
+    this.onPlayerJoined = undefined;
+    this.onPlayerLeft = undefined;
+    this.onPlayerMoved = undefined;
+    this.onTimeRemainingChanged = undefined;
+    this.onLeaderboardChanged = undefined;
+    this.onCollectibleCollected = undefined;
+    this.onCardCollected = undefined;
+    this.onPortalActivated = undefined;
+    this.onTimeExpired = undefined;
+    this.onMatchTerminated = undefined;
+    this.onSessionTerminated = undefined;
+    this.onConnected = undefined;
+    this.onDisconnect = undefined;
+
     if (this.room) {
-      this.room.leave();
+      try {
+        this.room.leave();
+      } catch (err) {
+        console.warn('[WARN] Error al abandonar la sala Colyseus:', err);
+      }
       this.room = null;
+      this.mySessionId = null;
     }
   }
 }

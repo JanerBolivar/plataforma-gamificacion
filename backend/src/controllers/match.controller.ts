@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 const createMatchSchema = z.object({
   name: z.string().min(1, 'El nombre de la partida es obligatorio').max(100),
-  maxTeams: z.number().int().min(1).max(6),
+  maxTeams: z.number().int().min(2, 'La cantidad minima de equipos es 2').max(6, 'La cantidad maxima de equipos es 6'),
 });
 
 const createTeamSchema = z.object({

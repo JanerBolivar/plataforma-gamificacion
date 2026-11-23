@@ -4,6 +4,7 @@ import { Room, Client, ServerError, Delayed } from 'colyseus';
 import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { JwtUtils } from '../utils/jwt.utils.js';
+import { SwampRoom } from './SwampRoom.js';
 import {
   CircoState,
   PlayerSchema,
@@ -131,6 +132,51 @@ export class CircoRoom extends Room<{ state: CircoState }> {
   private currentGuessItOrdererId: string | null = null;
 
   private static activeRoomsByMatchId: Map<string, CircoRoom> = new Map();
+
+  public static getActiveRoom(matchId: string): CircoRoom | undefined {
+    return CircoRoom.activeRoomsByMatchId.get(matchId);
+  }
+
+  /**
+   * Desconecta las sesiones activas de un usuario en todas las salas de Circo.
+   */
+  public static disconnectUserFromAllRooms(
+    userId: string,
+    exceptSessionId?: string,
+    reason: string = 'Se ha iniciado sesion desde otra ventana o dispositivo.'
+  ): void {
+    for (const room of CircoRoom.activeRoomsByMatchId.values()) {
+      room.disconnectUser(userId, exceptSessionId, reason);
+    }
+  }
+
+  /**
+   * Desconecta a un usuario especifico de esta sala.
+   */
+  public disconnectUser(
+    userId: string,
+    exceptSessionId?: string,
+    reason: string = 'Se ha iniciado sesion desde otra ventana o dispositivo.'
+  ): void {
+    for (const client of this.clients) {
+      if (exceptSessionId && client.sessionId === exceptSessionId) continue;
+      const auth = client.auth as AuthContext;
+      if (auth && auth.userId === userId) {
+        console.log(`[INFO] Desconectando sesion previa de usuario ${userId} (${client.sessionId}) en CircoRoom: ${reason}`);
+        try {
+          client.send('session_terminated', { message: reason });
+          this.state.players.delete(client.sessionId);
+          setTimeout(() => {
+            try {
+              client.leave();
+            } catch {}
+          }, 150);
+        } catch (err) {
+          console.error('[ERROR] Error al desconectar cliente previo en CircoRoom:', err);
+        }
+      }
+    }
+  }
 
   public static closeRoomForMatch(matchId: string, reason: string = 'Partida finalizada por un administrador.'): void {
     const room = CircoRoom.activeRoomsByMatchId.get(matchId);
@@ -411,6 +457,21 @@ export class CircoRoom extends Room<{ state: CircoState }> {
       } else {
         this.state.phase = 'FINISHED';
         this.timerInterval?.clear();
+        prisma.match
+          .update({
+            where: { id: this.state.matchId },
+            data: {
+              status: 'FINISHED',
+              currentStage: 'FINISHED',
+              finishedAt: new Date(),
+            },
+          })
+          .then(() => {
+            console.log(`[INFO] Partida de Circo ${this.state.matchId} registrada como FINISHED en base de datos.`);
+          })
+          .catch((err) => {
+            console.error('[ERROR] Error al persistir finalizacion de partida en CircoRoom:', err);
+          });
         this.broadcast('match_finished', { message: 'El tiempo de juego ha finalizado.' });
         console.log(`[INFO] Partida de Circo ${this.state.matchId} finalizada por limite de tiempo.`);
       }
@@ -1371,13 +1432,9 @@ export class CircoRoom extends Room<{ state: CircoState }> {
   }
 
   public onJoin(client: Client, _options: any, auth: AuthContext): void {
-    // Si el usuario ya tenia una conexion previa en esta sala, remover la sesion anterior
-    for (const [existingSessionId, existingPlayer] of this.state.players.entries()) {
-      if (existingPlayer.userId === auth.userId) {
-        console.log(`[INFO] Reemplazando sesion previa de ${existingPlayer.fullName} (${existingSessionId}) por nueva (${client.sessionId})`);
-        this.state.players.delete(existingSessionId);
-      }
-    }
+    // Desconectar cualquier sesion previa de este usuario en salas de Circo y Pantano
+    CircoRoom.disconnectUserFromAllRooms(auth.userId, client.sessionId);
+    SwampRoom.disconnectUserFromAllRooms(auth.userId, client.sessionId);
 
     console.log(`[INFO] Jugador ${auth.user.firstName} (${client.sessionId}) conectado a CircoRoom (${this.state.matchId})`);
 

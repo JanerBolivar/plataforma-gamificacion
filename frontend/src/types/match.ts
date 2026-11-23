@@ -1,4 +1,5 @@
 export type MatchStatus = 'WAITING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
+export type MatchStage = 'LOBBY' | 'SWAMP' | 'CIRCO' | 'FINISHED';
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 
 export interface MatchSummary {
@@ -7,6 +8,7 @@ export interface MatchSummary {
   maxTeams: number;
   maxTeamMembers: number;
   status: MatchStatus;
+  currentStage?: MatchStage;
   creatorId: string;
   creatorName: string;
   createdAt: string;
@@ -23,6 +25,7 @@ export interface MyActiveMatch {
     maxTeams: number;
     maxTeamMembers: number;
     status: MatchStatus;
+    currentStage?: MatchStage;
     creator: {
       id: string;
       firstName: string;
@@ -33,6 +36,7 @@ export interface MyActiveMatch {
   team: {
     id: string;
     name: string;
+    swampCompleted?: boolean;
   } | null;
 }
 
@@ -56,6 +60,7 @@ export interface TeamMember {
 export interface LobbyTeam {
   id: string;
   name: string;
+  swampCompleted?: boolean;
   createdAt: string;
   memberCount: number;
   members: TeamMember[];
@@ -95,6 +100,7 @@ export interface MatchLobbyDetails {
     maxTeams: number;
     maxTeamMembers: number;
     status: MatchStatus;
+    currentStage?: MatchStage;
     creator: {
       id: string;
       firstName: string;

@@ -2,6 +2,7 @@ import { Room, Client, ServerError, Delayed } from 'colyseus';
 import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { JwtUtils } from '../utils/jwt.utils.js';
+import { CircoRoom } from './CircoRoom.js';
 import {
   SwampState,
   PlayerSchema,
@@ -61,6 +62,51 @@ export class SwampRoom extends Room<{ state: SwampState }> {
 
   // Registro de salas activas por matchId para permitir terminacion administrativa
   private static activeRoomsByMatchId: Map<string, SwampRoom> = new Map();
+
+  public static getActiveRoom(matchId: string): SwampRoom | undefined {
+    return SwampRoom.activeRoomsByMatchId.get(matchId);
+  }
+
+  /**
+   * Desconecta las sesiones activas de un usuario en todas las salas de Pantano.
+   */
+  public static disconnectUserFromAllRooms(
+    userId: string,
+    exceptSessionId?: string,
+    reason: string = 'Se ha iniciado sesion desde otra ventana o dispositivo.'
+  ): void {
+    for (const room of SwampRoom.activeRoomsByMatchId.values()) {
+      room.disconnectUser(userId, exceptSessionId, reason);
+    }
+  }
+
+  /**
+   * Desconecta a un usuario especifico de esta sala.
+   */
+  public disconnectUser(
+    userId: string,
+    exceptSessionId?: string,
+    reason: string = 'Se ha iniciado sesion desde otra ventana o dispositivo.'
+  ): void {
+    for (const client of this.clients) {
+      if (exceptSessionId && client.sessionId === exceptSessionId) continue;
+      const auth = client.auth as AuthContext;
+      if (auth && auth.userId === userId) {
+        console.log(`[INFO] Desconectando sesion previa de usuario ${userId} (${client.sessionId}) en SwampRoom: ${reason}`);
+        try {
+          client.send('session_terminated', { message: reason });
+          this.state.players.delete(client.sessionId);
+          setTimeout(() => {
+            try {
+              client.leave();
+            } catch {}
+          }, 150);
+        } catch (err) {
+          console.error('[ERROR] Error al desconectar cliente previo en SwampRoom:', err);
+        }
+      }
+    }
+  }
 
   /**
    * Cierra y desconecta a todos los jugadores de la partida si fue terminada o cancelada externamente.
@@ -296,9 +342,22 @@ export class SwampRoom extends Room<{ state: SwampState }> {
         if (this.state.timeRemaining <= 0) {
           if (this.timerInterval) this.timerInterval.clear();
           console.log(`[INFO] Tiempo de pantano expirado para la partida ${this.state.matchId}.`);
-          this.broadcast('time_expired', {
-            message: 'Se ha acabado el tiempo de ejecucion. Sera trasladado al escenario Circo.',
-          });
+          prisma.match
+            .update({
+              where: { id: this.state.matchId },
+              data: { currentStage: 'CIRCO' },
+            })
+            .then(() => {
+              console.log(`[INFO] Partida ${this.state.matchId} actualizada a etapa CIRCO por expiracion de tiempo.`);
+            })
+            .catch((err) => {
+              console.error('[ERROR] Error al actualizar etapa a CIRCO tras expiracion de tiempo:', err);
+            })
+            .finally(() => {
+              this.broadcast('time_expired', {
+                message: 'Se ha acabado el tiempo de ejecucion. Sera trasladado al escenario Circo.',
+              });
+            });
         }
       }
     }, 1000);
@@ -418,6 +477,29 @@ export class SwampRoom extends Room<{ state: SwampState }> {
           teamName: teamState.name,
         });
         console.log(`[INFO] Portal dimensional activado para el equipo "${teamState.name}".`);
+
+        prisma.team
+          .update({
+            where: { id: teamState.teamId },
+            data: { swampCompleted: true },
+          })
+          .then(async () => {
+            const teamsInMatch = await prisma.team.findMany({
+              where: { matchId: this.state.matchId },
+              select: { id: true, swampCompleted: true },
+            });
+            const allCompleted = teamsInMatch.length > 0 && teamsInMatch.every((t) => t.swampCompleted);
+            if (allCompleted) {
+              await prisma.match.update({
+                where: { id: this.state.matchId },
+                data: { currentStage: 'CIRCO' },
+              });
+              console.log(`[INFO] Todos los equipos completaron el pantano. Partida ${this.state.matchId} avanza a etapa CIRCO.`);
+            }
+          })
+          .catch((err) => {
+            console.error('[ERROR] Error al persistir swampCompleted en equipo:', err);
+          });
       }
     });
 
@@ -425,13 +507,9 @@ export class SwampRoom extends Room<{ state: SwampState }> {
   }
 
   public onJoin(client: Client, _options: any, auth: AuthContext): void {
-    // Si el usuario ya tenia una conexion previa en esta sala (ej. recarga o reconexion), remover la sesion anterior
-    for (const [existingSessionId, existingPlayer] of this.state.players.entries()) {
-      if (existingPlayer.userId === auth.userId) {
-        console.log(`[INFO] Reemplazando sesion previa de ${existingPlayer.fullName} (${existingSessionId}) por nueva (${client.sessionId})`);
-        this.state.players.delete(existingSessionId);
-      }
-    }
+    // Desconectar cualquier sesion previa de este usuario en salas de Pantano y Circo
+    SwampRoom.disconnectUserFromAllRooms(auth.userId, client.sessionId);
+    CircoRoom.disconnectUserFromAllRooms(auth.userId, client.sessionId);
 
     const player = new PlayerSchema();
     player.userId = auth.userId;

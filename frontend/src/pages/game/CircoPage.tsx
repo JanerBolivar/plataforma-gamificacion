@@ -599,8 +599,21 @@ export const CircoPage: React.FC = () => {
     };
 
     nm.onMatchTerminated = (payload) => {
+      if (networkManagerRef.current !== nm) return;
       toast.error(`Partida cancelada: ${payload.message}`);
       setTimeout(() => navigate('/matches'), 2000);
+    };
+
+    nm.onSessionTerminated = (payload) => {
+      if (networkManagerRef.current !== nm) return;
+      toast.warning(payload.message || 'Se ha detectado otra sesión activa con su usuario. Redirigiendo a partidas...');
+      if (document.pointerLockElement) {
+        document.exitPointerLock?.();
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+      navigate('/matches', { replace: true });
     };
 
     nm.onErrorReceived = (msg) => {

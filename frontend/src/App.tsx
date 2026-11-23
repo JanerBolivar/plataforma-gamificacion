@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
@@ -11,6 +11,7 @@ import MatchesPage from './pages/lobby/MatchesPage';
 import MatchLobbyPage from './pages/lobby/MatchLobbyPage';
 import GamePage from './pages/game/GamePage';
 import CircoPage from './pages/game/CircoPage';
+import { MatchAccessGuard } from './components/MatchAccessGuard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -57,12 +58,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
   }
 
   return <AppLayout>{children}</AppLayout>;
-};
-
-/** Redireccion automatica de ruta legacy /game/:matchId a /game/:matchId/pantano */
-const GameMatchRedirect: React.FC = () => {
-  const { matchId } = useParams<{ matchId: string }>();
-  return <Navigate to={`/game/${matchId}/pantano`} replace />;
 };
 
 export const AppContent: React.FC = () => {
@@ -113,16 +108,9 @@ export const AppContent: React.FC = () => {
         path="/game/:matchId/pantano"
         element={
           <ProtectedRoute fullScreen>
-            <GamePage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/game/:matchId"
-        element={
-          <ProtectedRoute fullScreen>
-            <GameMatchRedirect />
+            <MatchAccessGuard requiredStage="SWAMP">
+              <GamePage />
+            </MatchAccessGuard>
           </ProtectedRoute>
         }
       />
@@ -131,7 +119,9 @@ export const AppContent: React.FC = () => {
         path="/game/:matchId/circo"
         element={
           <ProtectedRoute fullScreen>
-            <CircoPage />
+            <MatchAccessGuard requiredStage="CIRCO">
+              <CircoPage />
+            </MatchAccessGuard>
           </ProtectedRoute>
         }
       />

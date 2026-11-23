@@ -1,4 +1,4 @@
-import { MatchStatus, InvitationStatus, Role } from '@prisma/client';
+import { MatchStatus, MatchStage, InvitationStatus, Role } from '@prisma/client';
 
 export interface CreateMatchInput {
   name: string;
@@ -19,6 +19,7 @@ export interface MatchSummary {
   maxTeams: number;
   maxTeamMembers: number;
   status: MatchStatus;
+  currentStage: MatchStage;
   creatorId: string;
   creatorName: string;
   createdAt: Date;

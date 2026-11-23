@@ -93,6 +93,10 @@ export interface SharkTimeoutPayload {
   message: string;
 }
 
+export interface SessionTerminatedPayload {
+  message: string;
+}
+
 /**
  * Gestor de comunicacion en tiempo real para el escenario "Circo" con Colyseus.
  */
@@ -105,7 +109,8 @@ export class CircoNetworkManager {
   public mySeat: number = 0;
   public isRepresentative: boolean = false;
 
-  private isConnecting: boolean = false;
+  private isDisposed: boolean = false;
+  private joinPromise: Promise<Room | null> | null = null;
   private lastMoveSentTime: number = 0;
   private lastSentPos = { x: 0, y: 0, z: 0, ry: 0, animState: '' };
 
@@ -155,6 +160,7 @@ export class CircoNetworkManager {
   public onOpportunityEarned?: (payload: { teamName: string; opportunities: number }) => void;
   public onMatchFinished?: (payload: { message: string }) => void;
   public onMatchTerminated?: (payload: { message: string }) => void;
+  public onSessionTerminated?: (payload: SessionTerminatedPayload) => void;
   public onErrorReceived?: (message: string) => void;
 
   constructor() {
@@ -164,29 +170,52 @@ export class CircoNetworkManager {
   }
 
   public async joinMatch(matchId: string): Promise<Room | null> {
-    if (this.room || this.isConnecting) {
+    if (this.isDisposed) {
+      console.warn('[WARN] Intento de conectar con un CircoNetworkManager ya desechado.');
+      return null;
+    }
+
+    if (this.room) {
       return this.room;
     }
 
-    this.isConnecting = true;
-    try {
-      this.room = await this.client.joinOrCreate('circo_room', { matchId });
-      this.mySessionId = this.room.sessionId;
-      console.log(`[INFO] Conectado a circo_room (${this.room.roomId}) con sessionId: ${this.mySessionId}`);
+    if (this.joinPromise) {
+      return this.joinPromise;
+    }
 
-      if (this.onConnected && this.mySessionId) {
-        this.onConnected(this.mySessionId);
+    this.joinPromise = (async () => {
+      try {
+        const room = await this.client.joinOrCreate('circo_room', { matchId });
+
+        if (this.isDisposed) {
+          console.log('[INFO] Instancia descartada antes de completar conexion. Abandonando CircoRoom.');
+          try {
+            room.leave();
+          } catch {}
+          return null;
+        }
+
+        this.room = room;
+        this.mySessionId = room.sessionId;
+        console.log(`[INFO] Conectado a circo_room (${room.roomId}) con sessionId: ${this.mySessionId}`);
+
+        if (this.onConnected && this.mySessionId) {
+          this.onConnected(this.mySessionId);
+        }
+
+        this.setupRoomListeners();
+        return room;
+      } catch (err) {
+        if (!this.isDisposed) {
+          console.error('[ERROR] Error al conectar a circo_room:', err);
+        }
+        throw err;
+      } finally {
+        this.joinPromise = null;
       }
+    })();
 
-      this.setupRoomListeners();
-      return this.room;
-    } catch (err) {
-      console.error('[ERROR] Error al conectar a circo_room:', err);
-      this.isConnecting = false;
-      throw err;
-    } finally {
-      this.isConnecting = false;
-    }
+    return this.joinPromise;
   }
 
   private setupRoomListeners(): void {
@@ -289,6 +318,12 @@ export class CircoNetworkManager {
 
     room.onMessage('match_terminated', (payload) => {
       if (this.onMatchTerminated) this.onMatchTerminated(payload);
+    });
+
+    room.onMessage('session_terminated', (payload: SessionTerminatedPayload) => {
+      if (this.isDisposed) return;
+      console.log('[WARN] Sesion terminada por nueva conexion externa en Circo:', payload.message);
+      if (this.onSessionTerminated) this.onSessionTerminated(payload);
     });
 
     room.onMessage('error', (payload: { message: string }) => {
@@ -478,7 +513,7 @@ export class CircoNetworkManager {
 
     room.onLeave(() => {
       console.log('[INFO] Desconectado de circo_room.');
-      if (this.onDisconnect) this.onDisconnect();
+      if (!this.isDisposed && this.onDisconnect) this.onDisconnect();
     });
   }
 
@@ -572,6 +607,45 @@ export class CircoNetworkManager {
   }
 
   public leave(): void {
+    this.isDisposed = true;
+
+    // Desvincular callbacks para evitar invocaciones residuales tras desmontar
+    this.onConnected = undefined;
+    this.onDisconnect = undefined;
+    this.onPhaseChanged = undefined;
+    this.onTimeRemainingChanged = undefined;
+    this.onQuestionTimeRemainingChanged = undefined;
+    this.onCurrentTurnChanged = undefined;
+    this.onTurnStepChanged = undefined;
+    this.onArrowRotationChanged = undefined;
+    this.onActiveCardTypeChanged = undefined;
+    this.onTeamsUpdated = undefined;
+    this.onPlayerJoined = undefined;
+    this.onPlayerLeft = undefined;
+    this.onPlayerMoved = undefined;
+    this.onSeatClaimed = undefined;
+    this.onRouletteSpun = undefined;
+    this.onCardEmerged = undefined;
+    this.onCardPlaceholder = undefined;
+    this.onQuestionStarted = undefined;
+    this.onQuestionResult = undefined;
+    this.onQuestionTimeout = undefined;
+    this.onGuessItOrderPrompt = undefined;
+    this.onGuessItAnswerPrompt = undefined;
+    this.onGuessItOrderingStarted = undefined;
+    this.onGuessItAnsweringStarted = undefined;
+    this.onGuessItResult = undefined;
+    this.onGuessItTimeout = undefined;
+    this.onSharkOptionDrawn = undefined;
+    this.onSharkSelectTargetPrompt = undefined;
+    this.onSharkOpportunityRemoved = undefined;
+    this.onSharkTimeout = undefined;
+    this.onOpportunityEarned = undefined;
+    this.onMatchFinished = undefined;
+    this.onMatchTerminated = undefined;
+    this.onSessionTerminated = undefined;
+    this.onErrorReceived = undefined;
+
     if (this.room) {
       try {
         this.room.leave();

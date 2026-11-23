@@ -1,8 +1,9 @@
 import { prisma } from '../config/prisma.js';
-import { MatchStatus, InvitationStatus, Role, CollectibleType } from '@prisma/client';
+import { MatchStatus, MatchStage, InvitationStatus, Role, CollectibleType } from '@prisma/client';
 import { CreateMatchInput, CreateTeamInput, RespondInvitationInput } from '../models/match.model.js';
 import { PANTANO_MAP_CONFIG } from '../config/map-zones.js';
 import { SwampRoom } from '../game/SwampRoom.js';
+import { CircoRoom } from '../game/CircoRoom.js';
 
 /**
  * Servicio encargado de la logica de negocio para partidas, equipos e invitaciones.
@@ -61,6 +62,7 @@ export class MatchService {
       maxTeams: m.maxTeams,
       maxTeamMembers: m.maxTeamMembers,
       status: m.status,
+      currentStage: m.currentStage,
       creatorId: m.creatorId,
       creatorName: `${m.creator.firstName} ${m.creator.lastName}`.trim(),
       createdAt: m.createdAt,
@@ -92,6 +94,7 @@ export class MatchService {
       maxTeams: m.maxTeams,
       maxTeamMembers: m.maxTeamMembers,
       status: m.status,
+      currentStage: m.currentStage,
       creatorId: m.creatorId,
       creatorName: `${m.creator.firstName} ${m.creator.lastName}`.trim(),
       createdAt: m.createdAt,
@@ -118,6 +121,7 @@ export class MatchService {
         maxTeams: m.maxTeams,
         maxTeamMembers: m.maxTeamMembers,
         status: m.status,
+        currentStage: m.currentStage,
         creatorId: m.creatorId,
         creatorName: `${m.creator.firstName} ${m.creator.lastName}`.trim(),
         createdAt: m.createdAt,
@@ -145,8 +149,8 @@ export class MatchService {
       throw new Error('Ya se encuentra participando en una partida activa. Debe abandonarla primero.');
     }
 
-    if (data.maxTeams < 1 || data.maxTeams > 6) {
-      throw new Error('La cantidad maxima de equipos debe ser entre 1 y 6.');
+    if (data.maxTeams < 2 || data.maxTeams > 6) {
+      throw new Error('La cantidad maxima de equipos debe ser entre 2 y 6.');
     }
 
     return prisma.$transaction(async (tx) => {
@@ -156,6 +160,7 @@ export class MatchService {
           maxTeams: data.maxTeams,
           creatorId: userId,
           status: MatchStatus.WAITING,
+          currentStage: MatchStage.LOBBY,
         },
       });
 
@@ -221,6 +226,7 @@ export class MatchService {
         maxTeams: match.maxTeams,
         maxTeamMembers: match.maxTeamMembers,
         status: match.status,
+        currentStage: match.currentStage,
         creator: match.creator,
         createdAt: match.createdAt,
         startedAt: match.startedAt,
@@ -229,6 +235,7 @@ export class MatchService {
       teams: match.teams.map((t) => ({
         id: t.id,
         name: t.name,
+        swampCompleted: t.swampCompleted,
         createdAt: t.createdAt,
         memberCount: t.members.length,
         members: t.members.map((m) => ({
@@ -777,11 +784,12 @@ export class MatchService {
         });
       }
 
-      // Pasar partida a IN_PROGRESS
+      // Pasar partida a IN_PROGRESS y etapa a SWAMP
       const updatedMatch = await tx.match.update({
         where: { id: matchId },
         data: {
           status: MatchStatus.IN_PROGRESS,
+          currentStage: MatchStage.SWAMP,
           startedAt: new Date(),
         },
       });
@@ -831,12 +839,14 @@ export class MatchService {
       where: { id: matchId },
       data: {
         status: MatchStatus.FINISHED,
+        currentStage: MatchStage.FINISHED,
         finishedAt: new Date(),
       },
     });
 
     // Desconectar inmediatamente a todos los jugadores de las salas multijugador activas
     SwampRoom.closeRoomForMatch(matchId, 'La partida ha sido finalizada por un administrador.');
+    CircoRoom.closeRoomForMatch(matchId, 'La partida ha sido finalizada por un administrador.');
 
     console.log(`[INFO] Partida ${matchId} finalizada.`);
     return updated;
@@ -865,6 +875,7 @@ export class MatchService {
         where: { id: matchId },
         data: {
           status: MatchStatus.CANCELLED,
+          currentStage: MatchStage.FINISHED,
           finishedAt: new Date(),
         },
       });
@@ -874,6 +885,7 @@ export class MatchService {
 
     // Desconectar inmediatamente a todos los jugadores de las salas multijugador activas
     SwampRoom.closeRoomForMatch(matchId, 'La partida ha sido cancelada por un administrador.');
+    CircoRoom.closeRoomForMatch(matchId, 'La partida ha sido cancelada por un administrador.');
 
     console.log(`[INFO] Partida ${matchId} cancelada.`);
     return updated;

@@ -30,6 +30,7 @@ import {
   X,
   Clock,
   ArrowLeft,
+  AlertCircle,
 } from 'lucide-react';
 
 export const MatchLobbyPage: React.FC = () => {
@@ -64,7 +65,11 @@ export const MatchLobbyPage: React.FC = () => {
 
         if (myTeam) {
           toast.success('La partida ha comenzado.');
-          navigate(`/game/${matchId}/pantano`);
+          if (data.match.currentStage === 'CIRCO') {
+            navigate(`/game/${matchId}/circo`);
+          } else {
+            navigate(`/game/${matchId}/pantano`);
+          }
           return;
         } else {
           // El usuario no tenia equipo y fue expulsado al iniciar
@@ -198,7 +203,12 @@ export const MatchLobbyPage: React.FC = () => {
   };
 
   const handleStartMatch = async () => {
-    if (!matchId) return;
+    if (!matchId || !lobby) return;
+    const teamsWithMembers = lobby.teams.filter((t) => t.members.length > 0);
+    if (teamsWithMembers.length < 2) {
+      toast.warning('Se requieren al menos 2 equipos con integrantes para iniciar la partida.');
+      return;
+    }
     try {
       await matchService.startMatch(matchId);
       toast.success('Partida iniciada satisfactoriamente.');
@@ -230,6 +240,8 @@ export const MatchLobbyPage: React.FC = () => {
   }
 
   const teamsCount = lobby.teams.length;
+  const teamsWithMembersCount = lobby.teams.filter((t) => t.members.length > 0).length;
+  const canStartMatch = teamsWithMembersCount >= 2;
   const canCreateMoreTeams = teamsCount < lobby.match.maxTeams;
 
   return (
@@ -291,7 +303,17 @@ export const MatchLobbyPage: React.FC = () => {
             <Button
               size="sm"
               onClick={handleStartMatch}
-              className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={!canStartMatch}
+              className={`gap-1.5 text-xs text-white ${
+                canStartMatch
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-slate-400 dark:bg-slate-700 opacity-60 cursor-not-allowed'
+              }`}
+              title={
+                !canStartMatch
+                  ? 'Se requieren al menos 2 equipos con integrantes para iniciar la partida'
+                  : 'Iniciar partida'
+              }
             >
               <Play className="w-3.5 h-3.5" />
               Iniciar partida
@@ -299,6 +321,19 @@ export const MatchLobbyPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Alerta de requisito minimo de equipos para iniciar la partida */}
+      {isCreatorOrStaff && !canStartMatch && (
+        <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/40">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+            Requisito para iniciar la partida
+          </AlertTitle>
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-400 mt-1">
+            Se requiere un mínimo de 2 equipos con al menos un integrante cada uno para iniciar la partida (Equipos listos: {teamsWithMembersCount}/2).
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Notificaciones de invitaciones pendientes para el usuario */}
       {lobby.myPendingInvitations.length > 0 && (
