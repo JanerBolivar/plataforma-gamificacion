@@ -28,9 +28,12 @@ function devMapSavePlugin(): Plugin {
               if (!fs.existsSync(mapDir)) {
                 fs.mkdirSync(mapDir, { recursive: true });
               }
-              const mapPath = path.resolve(mapDir, "pantano-map.json");
+              const mapFileName = data.mapName
+                ? (data.mapName.endsWith('.json') ? data.mapName : `${data.mapName}-map.json`)
+                : "pantano-map.json";
+              const mapPath = path.resolve(mapDir, mapFileName);
               fs.writeFileSync(mapPath, JSON.stringify(data, null, 2), "utf8");
-              console.log("[INFO] Archivo de mapa actualizado en disco: pantano-map.json");
+              console.log(`[INFO] Archivo de mapa actualizado en disco: ${mapFileName}`);
 
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ success: true, message: "Mapa guardado correctamente" }));

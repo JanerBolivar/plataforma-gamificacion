@@ -64,7 +64,7 @@ export const MatchLobbyPage: React.FC = () => {
 
         if (myTeam) {
           toast.success('La partida ha comenzado.');
-          navigate(`/game/${matchId}`);
+          navigate(`/game/${matchId}/pantano`);
           return;
         } else {
           // El usuario no tenia equipo y fue expulsado al iniciar
@@ -202,7 +202,7 @@ export const MatchLobbyPage: React.FC = () => {
     try {
       await matchService.startMatch(matchId);
       toast.success('Partida iniciada satisfactoriamente.');
-      navigate(`/game/${matchId}`);
+      navigate(`/game/${matchId}/pantano`);
     } catch (err: unknown) {
       if (err instanceof Error) toast.error(err.message);
       else toast.error('Error al iniciar la partida.');

@@ -1,0 +1,174 @@
+{
+  "version": "1.0",
+  "mapName": "circo",
+  "objects": [
+    {
+      "id": "circo_base_1",
+      "model": "CircoBase.glb",
+      "category": "structure",
+      "name": "Base de la Isla Flotante Circo",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "flecha_1",
+      "model": "Flecha.glb",
+      "category": "prop",
+      "name": "Flecha",
+      "position": [
+        36.13,
+        -10.87,
+        -45.09
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "ficha_rojo_1",
+      "model": "FichaPlayer_Rojo.glb",
+      "category": "prop",
+      "name": "Ficha Rojo",
+      "position": [
+        26.53,
+        -12.3,
+        -23.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "ficha_azul_1",
+      "model": "FichaPlayer_Azul.glb",
+      "category": "prop",
+      "name": "Ficha Azul",
+      "position": [
+        49.77,
+        -12.3,
+        -25.71
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "ficha_amarillo_1",
+      "model": "FichaPlayer_Amarillo.glb",
+      "category": "prop",
+      "name": "Ficha Amarillo",
+      "position": [
+        59.76,
+        -12.3,
+        -47.32
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "ficha_amarilloclaro_1",
+      "model": "FichaPlayer_AmarilloClaro.glb",
+      "category": "prop",
+      "name": "Ficha Amarillo Claro",
+      "position": [
+        45.66,
+        -12.3,
+        -66.79
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "ficha_verdeclaro_1",
+      "model": "FichaPlayer_VerdeClaro.glb",
+      "category": "prop",
+      "name": "Ficha Verde Claro",
+      "position": [
+        12.34,
+        -12.3,
+        -43.36
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "ficha_moradoclaro_1",
+      "model": "FichaPlayer_MoradoClaro.glb",
+      "category": "prop",
+      "name": "Ficha Morado Claro",
+      "position": [
+        22.1,
+        -12.3,
+        -64.82
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    }
+  ]
+}

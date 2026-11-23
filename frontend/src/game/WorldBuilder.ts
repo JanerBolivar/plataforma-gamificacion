@@ -10,17 +10,25 @@ export interface WorldBuildProgress {
   currentAsset: string;
 }
 
+export interface WorldBuilderConfig {
+  mapName?: string;
+  mapUrl?: string;
+  modelsBasePath?: string;
+}
+
 /**
  * Genera el terreno, el agua, carga el mapa estatico JSON e instancia las mallas con colision BVH.
  */
 export class WorldBuilder {
   private scene: THREE.Scene;
   private gltfLoader: GLTFLoader;
-  private collectiblesManager: CollectiblesManager;
+  private collectiblesManager: CollectiblesManager | null = null;
+  private config: WorldBuilderConfig;
 
   // Terreno y grupos
   private terrainMesh: THREE.Mesh | null = null;
   private waterMesh: THREE.Mesh | null = null;
+  private baseWaterY: number = 0.05;
   private collidersGroup: THREE.Group = new THREE.Group();
   private colliderMesh: THREE.Mesh | null = null;
   private grassTexture: THREE.CanvasTexture | null = null;
@@ -32,9 +40,19 @@ export class WorldBuilder {
   private mapData: MapData = { version: '1.0', mapName: 'pantano', objects: [] };
   private instantiatedObjects: Map<string, { definition: MapObjectDefinition; object: THREE.Group }> = new Map();
 
-  constructor(scene: THREE.Scene, collectiblesManager: CollectiblesManager) {
+  constructor(
+    scene: THREE.Scene,
+    collectiblesManager: CollectiblesManager | null = null,
+    config?: WorldBuilderConfig
+  ) {
     this.scene = scene;
     this.collectiblesManager = collectiblesManager;
+    this.config = {
+      mapName: config?.mapName || 'pantano',
+      mapUrl: config?.mapUrl || (config?.mapName ? `/maps/${config.mapName}-map.json` : '/maps/pantano-map.json'),
+      modelsBasePath: config?.modelsBasePath || (config?.mapName ? `/models/${config.mapName}/` : '/models/pantano/'),
+    };
+    this.mapData = { version: '1.0', mapName: this.config.mapName || 'pantano', objects: [] };
     this.gltfLoader = new GLTFLoader();
 
     this.collidersGroup.name = 'WorldCollidersGroup';
@@ -249,24 +267,51 @@ export class WorldBuilder {
   }
 
   /**
+   * Crea el entorno acuatico para el escenario Circo (isla flotante donde las rocas inferiores
+   * quedan sumergidas hasta la mitad a Y = -68.0).
+   */
+  public buildCircoEnvironment(): void {
+    this.baseWaterY = -68.0;
+
+    // Gran plano de agua oceano circundante
+    const waterGeo = new THREE.PlaneGeometry(1600, 1600, 48, 48);
+    waterGeo.rotateX(-Math.PI / 2);
+
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x0c3452, // Azul turquesa/marino profundo con tono nocturno
+      roughness: 0.12,
+      metalness: 0.28,
+      transparent: true,
+      opacity: 0.88,
+    });
+
+    this.waterMesh = new THREE.Mesh(waterGeo, waterMat);
+    this.waterMesh.position.set(0, this.baseWaterY, 0);
+    this.waterMesh.name = 'CircoWaterPlane';
+    this.scene.add(this.waterMesh);
+  }
+
+  /**
    * Carga el archivo JSON del mapa, descarga los modelos GLB necesarios e instancia la escena.
    */
   public async loadWorldModels(onProgress?: (progress: WorldBuildProgress) => void): Promise<void> {
+    const mapUrl = this.config.mapUrl || '/maps/pantano-map.json';
+    const basePath = this.config.modelsBasePath || '/models/pantano/';
+
     try {
-      const res = await fetch('/maps/pantano-map.json');
+      const res = await fetch(mapUrl);
       if (res.ok) {
         this.mapData = (await res.json()) as MapData;
-        console.log(`[INFO] Mapa pantano-map.json cargado exitosamente (${this.mapData.objects.length} objetos).`);
+        console.log(`[INFO] Mapa ${mapUrl} cargado exitosamente (${this.mapData.objects.length} objetos).`);
       } else {
-        console.warn('[WARN] No se encontro pantano-map.json, se utilizara plantilla vacia.');
+        console.warn(`[WARN] No se encontro ${mapUrl}, se utilizara plantilla vacia.`);
       }
     } catch (err) {
-      console.error('[ERROR] Error al cargar pantano-map.json:', err);
+      console.error(`[ERROR] Error al cargar ${mapUrl}:`, err);
     }
 
     // Identificar modelos unicos referenciados en el mapa
     const uniqueModels = Array.from(new Set(this.mapData.objects.map((o) => o.model)));
-    const basePath = '/models/pantano/';
 
     let loadedCount = 0;
     for (const modelFile of uniqueModels) {
@@ -280,6 +325,17 @@ export class WorldBuilder {
 
       try {
         const gltf = await this.loadGLTF(`${basePath}${modelFile}`);
+
+        // Ocultar mallas designadas exclusivamente para colisiones fisicas (ej. COLLIDER_Limites)
+        gltf.scene.traverse((child) => {
+          if (child.name && (child.name.includes('COLLIDER') || child.name.toLowerCase().includes('collider'))) {
+            if ((child as THREE.Mesh).isMesh) {
+              const mesh = child as THREE.Mesh;
+              mesh.material = new THREE.MeshBasicMaterial({ visible: false });
+            }
+          }
+        });
+
         this.loadedPrototypes.set(modelFile, gltf.scene);
         loadedCount++;
       } catch (err) {
@@ -339,21 +395,35 @@ export class WorldBuilder {
     instance.rotation.set(def.rotation[0], def.rotation[1], def.rotation[2]);
     instance.scale.set(def.scale[0], def.scale[1], def.scale[2]);
 
+    // Ocultar mallas designadas como colisionadores fisicos (ej. COLLIDER_Limites)
+    instance.traverse((child) => {
+      if (child.name && (child.name.includes('COLLIDER') || child.name.toLowerCase().includes('collider'))) {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.material = new THREE.MeshBasicMaterial({ visible: false });
+        }
+      }
+    });
+
     instance.updateMatrixWorld(true);
 
     if (def.category === 'collectible') {
       this.scene.add(instance);
-      this.collectiblesManager.registerItem(
-        def.id,
-        def.name || def.id,
-        instance,
-        instance.position.clone()
-      );
+      if (this.collectiblesManager) {
+        this.collectiblesManager.registerItem(
+          def.id,
+          def.name || def.id,
+          instance,
+          instance.position.clone()
+        );
+      }
     } else if (def.category === 'portal') {
       this.scene.add(instance);
-      this.collectiblesManager.registerPortal(instance);
+      if (this.collectiblesManager) {
+        this.collectiblesManager.registerPortal(instance);
+      }
     } else {
-      // Estructuras y vegetacion forman parte del arbol de colisiones fisicas
+      // Estructuras, vegetacion y props forman parte del arbol de colisiones fisicas
       this.collidersGroup.add(instance);
     }
 
@@ -414,11 +484,16 @@ export class WorldBuilder {
    * Reconstruye la estructura de colision BVH fusionando el terreno y las estructuras.
    */
   public rebuildCollisionBVH(): THREE.Mesh | null {
-    if (!this.terrainMesh) return null;
+    if (!this.terrainMesh && this.collidersGroup.children.length === 0) {
+      console.warn('[WARN] No hay terreno ni objetos en collidersGroup para generar BVH.');
+      return null;
+    }
 
     // Crear un contenedor temporal que consolide terreno y objetos solidos
     const mergeContainer = new THREE.Group();
-    mergeContainer.add(this.terrainMesh.clone(false));
+    if (this.terrainMesh) {
+      mergeContainer.add(this.terrainMesh.clone(false));
+    }
 
     // Clonar mallas del collidersGroup preservando su matriz mundial
     this.collidersGroup.updateMatrixWorld(true);
@@ -449,20 +524,23 @@ export class WorldBuilder {
     } catch (err) {
       console.error('[ERROR] Error al generar arbol BVH de colisiones:', err);
 
-      // Fallback de emergencia: generar BVH directamente sobre el terreno base para garantizar suelo solido
-      try {
-        const fallbackGeo = this.terrainMesh.geometry.clone();
-        fallbackGeo.boundsTree = new MeshBVH(fallbackGeo, { targetLeafSize: 10, strategy: 0 });
-        if (this.colliderMesh) {
-          this.colliderMesh.geometry.dispose();
+      // Fallback de emergencia si existe terreno base
+      if (this.terrainMesh) {
+        try {
+          const fallbackGeo = this.terrainMesh.geometry.clone();
+          fallbackGeo.boundsTree = new MeshBVH(fallbackGeo, { targetLeafSize: 10, strategy: 0 });
+          if (this.colliderMesh) {
+            this.colliderMesh.geometry.dispose();
+          }
+          this.colliderMesh = new THREE.Mesh(fallbackGeo);
+          console.warn('[WARN] BVH de colisiones generado sobre el terreno base como respaldo.');
+          return this.colliderMesh;
+        } catch (fallbackErr) {
+          console.error('[ERROR] Fallo critico en respaldo de colision de terreno:', fallbackErr);
+          return null;
         }
-        this.colliderMesh = new THREE.Mesh(fallbackGeo);
-        console.warn('[WARN] BVH de colisiones generado sobre el terreno base como respaldo.');
-        return this.colliderMesh;
-      } catch (fallbackErr) {
-        console.error('[ERROR] Fallo critico en respaldo de colision de terreno:', fallbackErr);
-        return null;
       }
+      return null;
     }
   }
 
@@ -473,7 +551,7 @@ export class WorldBuilder {
   public getMapData(): MapData {
     return {
       version: this.mapData.version || '1.0',
-      mapName: this.mapData.mapName || 'pantano',
+      mapName: this.mapData.mapName || this.config.mapName || 'pantano',
       objects: Array.from(this.instantiatedObjects.values())
         .map((entry) => entry.definition)
         .filter((def) => def.category !== 'collectible'),
@@ -501,8 +579,9 @@ export class WorldBuilder {
    */
   public update(elapsedTime: number): void {
     if (this.waterMesh) {
-      // Movimiento ondulatorio sutil del agua de solo 6 milimetros
-      this.waterMesh.position.y = 0.05 + Math.sin(elapsedTime * 1.4) * 0.006;
+      // Movimiento ondulatorio sutil del agua adaptado a la altura del nivel de agua
+      const waveAmplitude = this.config.mapName === 'circo' ? 0.08 : 0.006;
+      this.waterMesh.position.y = this.baseWaterY + Math.sin(elapsedTime * 1.4) * waveAmplitude;
     }
   }
 

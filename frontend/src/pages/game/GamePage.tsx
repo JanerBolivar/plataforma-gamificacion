@@ -32,7 +32,6 @@ import {
   Play,
   Maximize2,
   Minimize2,
-  Settings,
   RotateCcw,
   Save,
   Copy,
@@ -42,12 +41,16 @@ import {
   Plus,
   X,
   Sliders,
-  Clock,
-  Trophy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { NetworkManager, TeamLeaderboardEntry } from '../../game/NetworkManager';
 import { Toaster } from '@/components/ui/sonner';
+import {
+  GameLeaderboardHUD,
+  GameTimerHUD,
+  GameCoordinatesHUD,
+  GameHelpBarHUD,
+} from '../../components/game/hud';
 
 export const GamePage: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
@@ -607,133 +610,29 @@ export const GamePage: React.FC = () => {
         </div>
       )}
 
-      {/* HUD: Lateral Izquierdo Centrado (Tabla de Posiciones, Estado de Equipo y Boton de Menu) */}
+      {/* HUD: Lateral Izquierdo Centrado (Tabla de Posiciones) */}
       {!loadingAssets && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 z-40 pointer-events-none w-72">
-          <Card className="bg-slate-900/90 backdrop-blur-md border-slate-800 shadow-2xl pointer-events-auto p-3.5 space-y-3">
-            {/* Encabezado: Titulo de Tabla y Partida */}
-            <div className="border-b border-slate-800 pb-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Trophy className="w-3.5 h-3.5" />
-                  Tabla de Posiciones
-                </span>
-                <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">
-                  Pantano
-                </Badge>
-              </div>
-              <p className="text-[11px] text-slate-400 truncate mt-1">
-                Partida: <strong className="text-slate-200">{lobby?.match.name || 'En curso'}</strong>
-              </p>
-            </div>
-
-            {/* Lista de Equipos en la Tabla de Posiciones */}
-            <div className="space-y-1.5 text-xs max-h-48 overflow-y-auto pr-0.5">
-              {leaderboard.length > 0 ? (
-                leaderboard.map((team, idx) => {
-                  const isMyTeam = team.teamId === myTeam?.id;
-                  return (
-                    <div
-                      key={team.teamId}
-                      className={`flex items-center justify-between p-2 rounded-md transition-all ${
-                        isMyTeam
-                          ? 'bg-primary/25 border border-primary/60 font-semibold text-slate-100 shadow-sm ring-1 ring-primary/40'
-                          : 'text-slate-300 hover:bg-slate-800/40 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-bold text-slate-400 text-[11px] w-4">#{idx + 1}</span>
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: team.color }}
-                        />
-                        <span className="truncate">{team.name}</span>
-                        {isMyTeam && (
-                          <span className="text-[9px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded-full shrink-0 ml-1">
-                            Tu equipo
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {team.cardsCount}/4
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-mono px-1.5 py-0 border-amber-500/30 text-amber-300"
-                        >
-                          {team.score} pts
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-slate-500 text-center py-2 text-[11px]">Sincronizando equipos...</div>
-              )}
-            </div>
-
-            {/* Estado del Portal del Equipo del Jugador */}
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-slate-400">Portal de tu equipo:</span>
-              <Badge
-                variant={portalActive ? 'default' : 'outline'}
-                className={
-                  portalActive
-                    ? 'animate-pulse text-[10px] bg-emerald-600 text-white font-medium'
-                    : 'text-slate-500 border-slate-700 text-[10px]'
-                }
-              >
-                {portalActive ? 'Activo (Presione E)' : `Bloqueado (${collectedCount}/4)`}
-              </Badge>
-            </div>
-
-            {/* Boton Inferior: Menu (Alt / M) y Editor [F2] si esta en desarrollo */}
-            <div className="pt-2 border-t border-slate-800 space-y-1.5">
-              {import.meta.env.DEV && (
-                <Button
-                  variant={isEditorActive ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={handleToggleEditor}
-                  className="w-full h-7 text-[11px] gap-1.5"
-                  title="Alternar Editor de Mapas (F2)"
-                >
-                  <Sliders className="w-3 h-3" />
-                  Editor [F2]
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openMenu}
-                className="w-full h-8 text-xs gap-1.5 bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-200"
-                title="Pausar y abrir menu (Alt o M)"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                Menu (Alt / M)
-              </Button>
-            </div>
-          </Card>
-        </div>
+        <GameLeaderboardHUD
+          stageName="Pantano"
+          matchName={lobby?.match.name || 'En curso'}
+          teams={leaderboard}
+          myTeamId={myTeam?.id}
+          portalStatus={{
+            active: portalActive,
+            count: collectedCount,
+            maxCount: 4,
+            label: 'Portal de tu equipo:',
+          }}
+          showEditorButton={import.meta.env.DEV}
+          isEditorActive={isEditorActive}
+          onToggleEditor={handleToggleEditor}
+          onOpenMenu={openMenu}
+        />
       )}
 
       {/* Temporizador Superior Central */}
       {!loadingAssets && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
-          <div
-            className={`px-4 py-1.5 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-2 pointer-events-auto ${
-              timeRemaining < 60
-                ? 'bg-red-950/95 border-red-500/70 text-red-200 animate-pulse'
-                : 'bg-slate-900/95 border-amber-500/50 text-amber-300'
-            }`}
-          >
-            <Clock className={`w-4 h-4 ${timeRemaining < 60 ? 'text-red-400' : 'text-amber-400'}`} />
-            <span className="font-mono font-bold text-sm tracking-wider text-slate-100">
-              {String(Math.floor(timeRemaining / 60)).padStart(2, '0')}:
-              {String(timeRemaining % 60).padStart(2, '0')}
-            </span>
-          </div>
-        </div>
+        <GameTimerHUD timeRemaining={timeRemaining} />
       )}
 
       {/* PANEL LATERAL DEL EDITOR DE MAPA (Exclusivo en modo desarrollo cuando F2 esta activo) */}
@@ -977,57 +876,17 @@ export const GamePage: React.FC = () => {
 
       {/* HUD: Centro Inferior (Aviso de interaccion contextual y controles) */}
       {!loadingAssets && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 pointer-events-none">
-          {nearbyPrompt && (
-            <div className="bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg shadow-lg text-xs animate-bounce pointer-events-auto">
-              {nearbyPrompt}
-            </div>
-          )}
-
-          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 text-slate-400 px-4 py-1.5 rounded-full text-[11px] flex items-center gap-3">
-            <span className="flex items-center gap-1 font-mono">
-              <strong className="text-slate-200">WASD</strong> Moverse
-            </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 font-mono">
-              <strong className="text-slate-200">Shift</strong> Correr
-            </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 font-mono">
-              <strong className="text-slate-200">Espacio</strong> Saltar
-            </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 font-mono">
-              <strong className="text-slate-200">Clic</strong> Apuntar
-            </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 font-mono">
-              <strong className="text-slate-200">Alt / M</strong> Menu
-            </span>
-            {import.meta.env.DEV && (
-              <>
-                <span>•</span>
-                <span className="flex items-center gap-1 font-mono text-sky-400">
-                  <strong className="text-sky-300">F2</strong> Editor
-                </span>
-              </>
-            )}
-            <span>•</span>
-            <span className="flex items-center gap-1 font-mono text-primary">
-              <strong className="text-primary-foreground bg-primary px-1 rounded text-[10px]">E</strong> Interactuar
-            </span>
-          </div>
-        </div>
+        <GameHelpBarHUD
+          nearbyPrompt={nearbyPrompt}
+          showEditorKey={import.meta.env.DEV}
+          showInteractKey={true}
+          interactLabel="Interactuar"
+        />
       )}
 
       {/* Indicador de Coordenadas del Jugador en el Mapa */}
-      {devCoords && !loadingAssets && (
-        <div className="absolute bottom-4 left-4 z-40 pointer-events-none">
-          <div className="bg-slate-900/85 backdrop-blur-md border border-slate-800 text-slate-300 px-3 py-1.5 rounded-md text-[11px] font-mono shadow-md">
-            <span className="text-slate-400 mr-1.5">[Posición]</span>
-            <span>X: <strong className="text-slate-100">{devCoords.x}</strong> Y: <strong className="text-slate-100">{devCoords.y}</strong> Z: <strong className="text-slate-100">{devCoords.z}</strong></span>
-          </div>
-        </div>
+      {!loadingAssets && (
+        <GameCoordinatesHUD coords={devCoords} />
       )}
 
       {/* Modal / Menu de Opciones al Presionar Alt / M */}

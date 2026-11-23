@@ -28,11 +28,20 @@ export class PlayerController {
   private audioManager: AudioManager | null = null;
   private stepDistance: number = 0;
   private isRunning: boolean = false;
+  private defaultSurface: FootstepSurface = 'grass';
+  private waterLevel: number = 0.05;
 
   // Rotaciones de camara
   private pitch: number = 0;
   private yaw: number = 0;
   private isLocked: boolean = false;
+
+  // Limites perimetrales configurables por escenario
+  public minBoundaryY: number = -4.0;
+  public maxBoundaryY: number = 55.0;
+  public maxBoundaryXZ: number = 119.0;
+  public defaultSpawnPosition: THREE.Vector3 = new THREE.Vector3(12.5, 3.9, 90);
+  private storageKey: string = DEV_PLAYER_POS_STORAGE_KEY;
 
   // Deshabilitacion temporal durante edicion en modo editor o menu de pausa
   public isEditorActive: boolean = false;
@@ -97,19 +106,44 @@ export class PlayerController {
     this.updateCameraTransform();
   }
 
+  public setBounds(minY: number, maxY: number, maxXZ: number): void {
+    this.minBoundaryY = minY;
+    this.maxBoundaryY = maxY;
+    this.maxBoundaryXZ = maxXZ;
+  }
+
+  public setDefaultSpawn(pos: THREE.Vector3): void {
+    this.defaultSpawnPosition.copy(pos);
+  }
+
+  public setStorageKey(key: string): void {
+    this.storageKey = key;
+    if (import.meta.env.DEV) {
+      this.hasLoadedDevPosition = this.loadDevPosition();
+    }
+  }
+
   private loadDevPosition(): boolean {
     try {
-      const raw = localStorage.getItem(DEV_PLAYER_POS_STORAGE_KEY);
+      const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const data = JSON.parse(raw);
         if (typeof data.x === 'number' && typeof data.y === 'number' && typeof data.z === 'number') {
-          this.position.set(data.x, data.y, data.z);
-          if (typeof data.yaw === 'number') this.yaw = data.yaw;
-          if (typeof data.pitch === 'number') this.pitch = data.pitch;
-          this.syncCapsuleToPosition();
-          this.updateCameraTransform();
-          console.log('[INFO] Posicion restaurada en desarrollo:', this.position);
-          return true;
+          // Validar que la posicion recuperada no este al borde del vacio
+          if (
+            Math.abs(data.x) <= this.maxBoundaryXZ &&
+            Math.abs(data.z) <= this.maxBoundaryXZ &&
+            data.y >= this.minBoundaryY + 15.0 &&
+            data.y <= this.maxBoundaryY
+          ) {
+            this.position.set(data.x, data.y, data.z);
+            if (typeof data.yaw === 'number') this.yaw = data.yaw;
+            if (typeof data.pitch === 'number') this.pitch = data.pitch;
+            this.syncCapsuleToPosition();
+            this.updateCameraTransform();
+            console.log('[INFO] Posicion restaurada en desarrollo:', this.position);
+            return true;
+          }
         }
       }
     } catch {
@@ -128,16 +162,16 @@ export class PlayerController {
         yaw: Number(this.yaw.toFixed(3)),
         pitch: Number(this.pitch.toFixed(3)),
       };
-      localStorage.setItem(DEV_PLAYER_POS_STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(this.storageKey, JSON.stringify(payload));
     } catch {
       // Ignorar
     }
   }
 
-  public resetSpawnPosition(defaultPos: THREE.Vector3 = new THREE.Vector3(12.5, 3.9, 90)): void {
+  public resetSpawnPosition(defaultPos: THREE.Vector3 = this.defaultSpawnPosition): void {
     if (import.meta.env.DEV) {
       try {
-        localStorage.removeItem(DEV_PLAYER_POS_STORAGE_KEY);
+        localStorage.removeItem(this.storageKey);
       } catch {
         // Ignorar
       }
@@ -249,13 +283,22 @@ export class PlayerController {
     this.audioManager = am;
   }
 
+  public setSurfaceConfig(defaultSurface: FootstepSurface = 'grass', waterLevel: number = 0.05): void {
+    this.defaultSurface = defaultSurface;
+    this.waterLevel = waterLevel;
+  }
+
   /**
    * Identifica la superficie que esta pisando el jugador segun su ubicacion y altura.
    */
   public getFootstepSurface(): FootstepSurface {
-    // Si esta en o por debajo del nivel del agua (0.05 con margen hasta 0.12m)
-    if (this.position.y <= 0.12) {
+    // Si esta en o por debajo del nivel del agua
+    if (this.position.y <= this.waterLevel + 0.1) {
       return 'water';
+    }
+
+    if (this.defaultSurface === 'wood') {
+      return 'wood';
     }
 
     // Si esta sobre el entarimado o escalones de madera de Sala_Bienvenida
@@ -291,8 +334,8 @@ export class PlayerController {
       return 'wood';
     }
 
-    // Terreno natural de pasto y tierra
-    return 'grass';
+    // Terreno natural
+    return this.defaultSurface;
   }
 
   /**
@@ -301,6 +344,11 @@ export class PlayerController {
   public update(delta: number): void {
     // Si el menu esta abierto o el editor esta manipulando un objeto, pausar movimiento
     if (this.isMenuOpen || (this.isEditorActive && !this.isLocked)) {
+      return;
+    }
+
+    // Si aun no se ha inicializado la malla de colisiones, congelar fisica para evitar caida al vacio
+    if (!this.colliderMesh) {
       return;
     }
 
@@ -434,12 +482,11 @@ export class PlayerController {
     }
 
     // Limites perimetrales y rescate de emergencia en caso de caida al agua o escape por fallos
-    const maxBoundary = 119.0;
     if (
-      Math.abs(this.position.x) > maxBoundary ||
-      Math.abs(this.position.z) > maxBoundary ||
-      this.position.y < -4.0 ||
-      this.position.y > 55.0
+      Math.abs(this.position.x) > this.maxBoundaryXZ ||
+      Math.abs(this.position.z) > this.maxBoundaryXZ ||
+      this.position.y < this.minBoundaryY ||
+      this.position.y > this.maxBoundaryY
     ) {
       console.warn('[WARN] Jugador fuera de los limites permitidos del mapa. Reubicando al punto de inicio.');
       this.resetSpawnPosition();

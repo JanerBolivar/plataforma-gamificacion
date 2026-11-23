@@ -2,7 +2,7 @@
  * Definicion de tipos para la serializacion y gestion del mapa estatico 3D.
  */
 
-export type MapObjectCategory = 'structure' | 'vegetation' | 'collectible' | 'portal';
+export type MapObjectCategory = 'structure' | 'vegetation' | 'collectible' | 'portal' | 'prop';
 
 export interface MapObjectDefinition {
   id: string;

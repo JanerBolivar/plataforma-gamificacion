@@ -161,10 +161,18 @@ export class MapEditor {
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    // Buscar intersecciones con mallas del mapa
+    // Buscar intersecciones con mallas del mapa (excluyendo colisionadores con material invisible)
     const candidates: THREE.Object3D[] = [];
     this.scene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh && obj.parent) {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.material) {
+          if (Array.isArray(mesh.material)) {
+            if (mesh.material.every((m) => !m.visible)) return;
+          } else if (!mesh.material.visible) {
+            return;
+          }
+        }
         candidates.push(obj);
       }
     });
@@ -344,11 +352,32 @@ export class MapEditor {
     return null;
   }
 
+  private availableModels: string[] = [
+    'Sala_Bienvenida.glb',
+    'Choza_Alta.glb',
+    'Choza_Baja.glb',
+    'Arbol_pantano.glb',
+    'Tronco.glb',
+    'Arbol_TP.glb',
+    'TP.glb',
+  ];
+
+  public setAvailableModels(models: string[]): void {
+    this.availableModels = models;
+  }
+
+  public getAvailableModels(): string[] {
+    return this.availableModels;
+  }
+
   /**
    * Guarda el estado del mapa actual en disco mediante el endpoint de desarrollo en Vite.
    */
   public async saveMapToDisk(): Promise<{ success: boolean; message: string }> {
     const mapData = this.worldBuilder.getMapData();
+    const mapFileName = mapData.mapName
+      ? (mapData.mapName.endsWith('.json') ? mapData.mapName : `${mapData.mapName}-map.json`)
+      : 'pantano-map.json';
 
     try {
       const res = await fetch('/__dev/save-map', {
@@ -358,8 +387,8 @@ export class MapEditor {
       });
 
       if (res.ok) {
-        console.log('[INFO] Archivo pantano-map.json guardado en disco exitosamente.');
-        return { success: true, message: 'Mapa guardado en disco exitosamente.' };
+        console.log(`[INFO] Archivo ${mapFileName} guardado en disco exitosamente.`);
+        return { success: true, message: `Mapa ${mapFileName} guardado en disco exitosamente.` };
       } else {
         throw new Error(`Respuesta de servidor no satisfactoria: ${res.status}`);
       }
@@ -372,28 +401,16 @@ export class MapEditor {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'pantano-map.json';
+      a.download = mapFileName;
       a.click();
       URL.revokeObjectURL(url);
 
-      return { success: true, message: 'Archivo descargado como respaldo.' };
+      return { success: true, message: `Archivo ${mapFileName} descargado como respaldo.` };
     }
   }
 
   public getSelectedDefinition(): MapObjectDefinition | null {
     return this.selectedDef;
-  }
-
-  public getAvailableModels(): string[] {
-    return [
-      'Sala_Bienvenida.glb',
-      'Choza_Alta.glb',
-      'Choza_Baja.glb',
-      'Arbol_pantano.glb',
-      'Tronco.glb',
-      'Arbol_TP.glb',
-      'TP.glb',
-    ];
   }
 
   public dispose(): void {
