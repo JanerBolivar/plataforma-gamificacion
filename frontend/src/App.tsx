@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AccountStatusView from './pages/AccountStatusView';
 import AppLayout from './layouts/AppLayout';
+import Home from './pages/Home';
 import Welcome from './pages/Welcome';
 import UsersPage from './pages/admin/UsersPage';
 import MatchesPage from './pages/lobby/MatchesPage';
@@ -77,8 +78,12 @@ export const AppContent: React.FC = () => {
       />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
+      {/* Ruta publica principal */}
+      <Route path="/" element={<Home />} />
+
+      {/* Ruta protegida: bienvenida y avatar */}
       <Route
-        path="/"
+        path="/welcome"
         element={
           <ProtectedRoute>
             <Welcome />

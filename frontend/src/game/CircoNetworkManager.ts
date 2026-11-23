@@ -93,6 +93,15 @@ export interface SharkTimeoutPayload {
   message: string;
 }
 
+export interface PodiumStartedPayload {
+  winningTeamId: string;
+  winningTeamName: string;
+  winningTeamColor: string;
+  reason: string;
+  podiumTimeRemaining: number;
+  placements: Record<string, { x: number; y: number; z: number; ry: number; isWinner: boolean }>;
+}
+
 export interface SessionTerminatedPayload {
   message: string;
 }
@@ -161,6 +170,8 @@ export class CircoNetworkManager {
   public onSharkOpportunityRemoved?: (payload: SharkOpportunityRemovedPayload) => void;
   public onSharkTimeout?: (payload: SharkTimeoutPayload) => void;
   public onOpportunityEarned?: (payload: { teamName: string; opportunities: number }) => void;
+  public onPodiumStarted?: (payload: PodiumStartedPayload) => void;
+  public onPodiumTimeRemainingChanged?: (seconds: number) => void;
   public onMatchFinished?: (payload: { message: string }) => void;
   public onMatchTerminated?: (payload: { message: string }) => void;
   public onSessionTerminated?: (payload: SessionTerminatedPayload) => void;
@@ -309,6 +320,10 @@ export class CircoNetworkManager {
 
     room.onMessage('opportunity_earned', (payload) => {
       if (this.onOpportunityEarned) this.onOpportunityEarned(payload);
+    });
+
+    room.onMessage('podium_started', (payload: PodiumStartedPayload) => {
+      if (this.onPodiumStarted) this.onPodiumStarted(payload);
     });
 
     room.onMessage('turn_changed', (payload) => {
@@ -503,6 +518,11 @@ export class CircoNetworkManager {
           this.onArrowRotationChanged(state.arrowRotationY);
         }
       }
+      if (typeof state.podiumTimeRemaining === 'number') {
+        if (this.onPodiumTimeRemainingChanged) {
+          this.onPodiumTimeRemainingChanged(state.podiumTimeRemaining);
+        }
+      }
       if (typeof state.activeCardType === 'string' && state.activeCardType !== this.lastActiveCardType) {
         this.lastActiveCardType = state.activeCardType;
         if (this.onActiveCardTypeChanged) {
@@ -647,6 +667,8 @@ export class CircoNetworkManager {
     this.onSharkOpportunityRemoved = undefined;
     this.onSharkTimeout = undefined;
     this.onOpportunityEarned = undefined;
+    this.onPodiumStarted = undefined;
+    this.onPodiumTimeRemainingChanged = undefined;
     this.onMatchFinished = undefined;
     this.onMatchTerminated = undefined;
     this.onSessionTerminated = undefined;

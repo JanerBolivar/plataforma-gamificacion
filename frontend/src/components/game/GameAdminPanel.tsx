@@ -63,6 +63,7 @@ const CIRCO_LANDMARKS: LandmarkPoint[] = [
   { label: 'Atril Puesto 1', x: -6.3, y: -7.5, z: -0.6 },
   { label: 'Atril Puesto 2', x: 10.8, y: -7.5, z: -9.4 },
   { label: 'Gradas de Espectadores', x: 36.13, y: -7.5, z: -18.0 },
+  { label: 'Tarima de Premiacion', x: 150.0, y: -13.3, z: -16.5 },
 ];
 
 const COLLECTIBLE_TYPES = [

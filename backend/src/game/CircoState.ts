@@ -23,13 +23,17 @@ export class CircoTeamSchema extends Schema {
  */
 export class CircoState extends Schema {
   @type('string') matchId: string = '';
-  @type('string') phase: string = 'SELECTING_PODIUMS'; // "SELECTING_PODIUMS" | "PLAYING" | "FINISHED"
+  @type('string') phase: string = 'SELECTING_PODIUMS'; // "SELECTING_PODIUMS" | "PLAYING" | "PODIUM" | "FINISHED"
   @type('number') timeRemaining: number = 0;
   @type('number') questionTimeRemaining: number = 0;
   @type('number') currentTurnSeat: number = 1;
   @type('string') turnStep: string = 'IDLE'; // "IDLE" | "SPINNING" | "CARD_ANIMATING" | "QUESTION_ACTIVE" | "GUESS_IT_ORDERING" | "GUESS_IT_ANSWERING" | "SHARK_SELECTING_TARGET" | "CROWN_ANIMATING"
   @type('number') arrowRotationY: number = 0;
   @type('string') activeCardType: string = ''; // "" | "PREGUNTA" | "ADIVINALO" | "TIBURON_ROJO" | "TIBURON_AZUL" | "CORONA"
+  @type('string') winningTeamId: string = '';
+  @type('string') winningTeamName: string = '';
+  @type('string') victoryReason: string = '';
+  @type('number') podiumTimeRemaining: number = 0;
   @type({ map: PlayerSchema }) players = new MapSchema<PlayerSchema>();
   @type({ map: CircoTeamSchema }) teams = new MapSchema<CircoTeamSchema>();
 }

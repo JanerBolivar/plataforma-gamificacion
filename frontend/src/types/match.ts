@@ -60,6 +60,10 @@ export interface TeamMember {
 export interface LobbyTeam {
   id: string;
   name: string;
+  score?: number;
+  circoSeat?: number | null;
+  circoOpportunities?: number;
+  circoTokenPosition?: number;
   swampCompleted?: boolean;
   createdAt: string;
   memberCount: number;

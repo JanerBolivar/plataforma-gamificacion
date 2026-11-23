@@ -538,6 +538,11 @@ export class PlayerController {
     this.updateCameraTransform();
   }
 
+  public setYaw(yaw: number): void {
+    this.yaw = yaw;
+    this.updateCameraTransform();
+  }
+
   public dispose(): void {
     window.removeEventListener('keydown', this.boundOnKeyDown);
     window.removeEventListener('keyup', this.boundOnKeyUp);

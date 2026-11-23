@@ -125,6 +125,7 @@ export class CircoRoom extends Room<{ state: CircoState }> {
   public maxClients = 36;
   private timerInterval?: Delayed;
   private questionTimerInterval?: Delayed;
+  private podiumTimerInterval?: Delayed;
   private questionsBank: QuestionData[] = [];
   private usedQuestionIds: Set<number> = new Set();
   private currentActiveQuestionId: number | null = null;
@@ -483,27 +484,187 @@ export class CircoRoom extends Room<{ state: CircoState }> {
       if (this.state.timeRemaining > 0) {
         this.state.timeRemaining -= 1;
       } else {
-        this.state.phase = 'FINISHED';
         this.timerInterval?.clear();
-        prisma.match
-          .update({
-            where: { id: this.state.matchId },
-            data: {
-              status: 'FINISHED',
-              currentStage: 'FINISHED',
-              finishedAt: new Date(),
-            },
-          })
-          .then(() => {
-            console.log(`[INFO] Partida de Circo ${this.state.matchId} registrada como FINISHED en base de datos.`);
-          })
-          .catch((err) => {
-            console.error('[ERROR] Error al persistir finalizacion de partida en CircoRoom:', err);
-          });
-        this.broadcast('match_finished', { message: 'El tiempo de juego ha finalizado.' });
-        console.log(`[INFO] Partida de Circo ${this.state.matchId} finalizada por limite de tiempo.`);
+        this.timerInterval = undefined;
+
+        console.log(`[INFO] Tiempo de juego agotado en CircoRoom para la partida ${this.state.matchId}.`);
+
+        // Determinar equipo ganador por mayor puntaje acumulado (o mas oportunidades como desempate)
+        let winner: CircoTeamSchema | null = null;
+        let maxScore = -1;
+        let maxOpportunities = -1;
+
+        for (const [, t] of this.state.teams.entries()) {
+          if (t.score > maxScore || (t.score === maxScore && t.opportunities > maxOpportunities)) {
+            maxScore = t.score;
+            maxOpportunities = t.opportunities;
+            winner = t;
+          }
+        }
+
+        if (winner) {
+          const winningTeam: CircoTeamSchema = winner;
+          this.triggerVictoryPodium(
+            winningTeam.teamId,
+            `¡Tiempo agotado! El equipo "${winningTeam.name}" gana la partida con ${winningTeam.score} puntos.`
+          );
+        } else {
+          this.finishMatchPermanently();
+        }
       }
     }, 1000);
+  }
+
+  /**
+   * Inicia la fase de celebracion y premiacion en la tarima (duracion: 2 minutos / 120 segundos).
+   */
+  public triggerVictoryPodium(winningTeamId: string, reason: string): void {
+    if (this.state.phase === 'PODIUM' || this.state.phase === 'FINISHED') return;
+
+    this.state.phase = 'PODIUM';
+    this.state.turnStep = 'IDLE';
+
+    // Cancelar cualquier temporizador activo de preguntas o partida general
+    this.timerInterval?.clear();
+    this.timerInterval = undefined;
+    this.questionTimerInterval?.clear();
+    this.questionTimerInterval = undefined;
+
+    const winningTeam = this.state.teams.get(winningTeamId);
+    const winningTeamName = winningTeam?.name || 'Equipo Ganador';
+    const winningTeamColor = winningTeam?.color || '#3b82f6';
+
+    this.state.winningTeamId = winningTeamId;
+    this.state.winningTeamName = winningTeamName;
+    this.state.victoryReason = reason;
+    this.state.podiumTimeRemaining = 120; // 2 minutos exactos de celebracion
+
+    console.log(`[INFO] ¡Victoria en CircoRoom para ${winningTeamName} (${winningTeamId})! Motivo: ${reason}`);
+
+    // Separar jugadores: integrantes del equipo ganador vs. demas jugadores
+    const winningPlayers: PlayerSchema[] = [];
+    const otherPlayers: PlayerSchema[] = [];
+
+    this.state.players.forEach((player) => {
+      if (player.teamId === winningTeamId) {
+        winningPlayers.push(player);
+      } else {
+        otherPlayers.push(player);
+      }
+    });
+
+    const placements: Record<string, { x: number; y: number; z: number; ry: number; isWinner: boolean }> = {};
+
+    // 1. Posicionar integrantes del equipo ganador en la plataforma superior de la tarima
+    // Centro de la tarima: X=150.0, Y=-13.33, Z=-16.5 (orientados hacia +Z mirando al auditorio en la plaza)
+    const nWinners = Math.max(1, winningPlayers.length);
+    winningPlayers.forEach((p, idx) => {
+      const offsetX = (idx - (nWinners - 1) / 2) * 2.2;
+      p.x = 150.0 + offsetX;
+      p.y = -13.33;
+      p.z = -16.5;
+      p.ry = 0; // Mirando hacia el frente (+Z)
+      p.animState = 'idle';
+
+      placements[p.userId] = {
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        ry: p.ry,
+        isWinner: true,
+      };
+    });
+
+    // 2. Posicionar a los demas jugadores en el piso de la plaza frente a la tarima
+    // Piso de la plaza frente a la tarima: Z=-7.0, Y=-14.85, orientados hacia -Z mirando la tarima
+    otherPlayers.forEach((p, idx) => {
+      const col = (idx % 6) - 2.5;
+      const row = Math.floor(idx / 6);
+      p.x = 150.0 + col * 2.2;
+      p.y = -14.85;
+      p.z = -7.0 + row * 2.2;
+      p.ry = Math.PI; // Mirando hacia la tarima (-Z)
+      p.animState = 'idle';
+
+      placements[p.userId] = {
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        ry: p.ry,
+        isWinner: false,
+      };
+    });
+
+    // Notificar a todos los clientes del inicio de la premiacion
+    this.broadcast('podium_started', {
+      winningTeamId,
+      winningTeamName,
+      winningTeamColor,
+      reason,
+      podiumTimeRemaining: 120,
+      placements,
+    });
+
+    // Iniciar temporizador regresivo de 2 minutos (120 segundos) en tarima
+    this.podiumTimerInterval?.clear();
+    this.podiumTimerInterval = this.clock.setInterval(async () => {
+      if (this.state.phase !== 'PODIUM') {
+        this.podiumTimerInterval?.clear();
+        return;
+      }
+
+      if (this.state.podiumTimeRemaining > 0) {
+        this.state.podiumTimeRemaining -= 1;
+      } else {
+        this.podiumTimerInterval?.clear();
+        this.podiumTimerInterval = undefined;
+        await this.finishMatchPermanently();
+      }
+    }, 1000);
+  }
+
+  /**
+   * Finaliza la partida formalmente en base de datos y cierra la sala.
+   */
+  private async finishMatchPermanently(): Promise<void> {
+    if (this.state.phase === 'FINISHED') return;
+    this.state.phase = 'FINISHED';
+
+    try {
+      // 1. Asegurar la persistencia del estado final de todos los equipos en base de datos
+      for (const team of this.state.teams.values()) {
+        await prisma.team.update({
+          where: { id: team.teamId },
+          data: {
+            score: team.score,
+            circoOpportunities: team.opportunities,
+            circoTokenPosition: team.tokenPosition,
+          },
+        });
+      }
+
+      // 2. Registrar la partida como finalizada formalmente
+      await prisma.match.update({
+        where: { id: this.state.matchId },
+        data: {
+          status: 'FINISHED',
+          currentStage: 'FINISHED',
+          finishedAt: new Date(),
+        },
+      });
+      console.log(`[INFO] Partida de Circo ${this.state.matchId} registrada como FINISHED en base de datos tras tarima.`);
+    } catch (err) {
+      console.error('[ERROR] Error al persistir finalizacion permanente de partida en Prisma:', err);
+    }
+
+    this.broadcast('match_finished', {
+      message: 'La partida ha concluido. ¡Felicitaciones a los participantes!',
+    });
+
+    // Margen de 4 segundos antes de desconectar para que los clientes procesen la navegacion
+    this.clock.setTimeout(() => {
+      CircoRoom.closeRoomForMatch(this.state.matchId, 'La partida ha concluido exitosamente.');
+    }, 4000);
   }
 
   private setupMessageHandlers(): void {
@@ -753,7 +914,7 @@ export class CircoRoom extends Room<{ state: CircoState }> {
           currentTeam.tokenPosition = 5;
           this.state.turnStep = 'CROWN_ANIMATING';
           this.state.activeCardType = 'CORONA';
-          currentTeam.opportunities += 1;
+          currentTeam.opportunities = Math.min(3, currentTeam.opportunities < 3 ? currentTeam.opportunities + 1 : 3);
 
           await prisma.team.update({
             where: { id: currentTeam.teamId },
@@ -770,6 +931,17 @@ export class CircoRoom extends Room<{ state: CircoState }> {
             teamName: currentTeam.name,
             opportunities: currentTeam.opportunities,
           });
+
+          // Si el equipo completa 3 oportunidades, gana la partida y pasa a la tarima
+          if (currentTeam.opportunities >= 3) {
+            this.clock.setTimeout(() => {
+              this.triggerVictoryPodium(
+                currentTeam.teamId,
+                `¡El equipo "${currentTeam.name}" consiguio 3 oportunidades y se corona campeon!`
+              );
+            }, 3000);
+            return;
+          }
 
           // Animacion de corona dura ~4.0 segundos; al finalizar, se resetea la posicion a 0 para el proximo circuito
           this.clock.setTimeout(async () => {
@@ -943,7 +1115,7 @@ export class CircoRoom extends Room<{ state: CircoState }> {
           currentTeam.tokenPosition = 5;
           this.state.turnStep = 'CROWN_ANIMATING';
           this.state.activeCardType = 'CORONA';
-          currentTeam.opportunities += 1;
+          currentTeam.opportunities = Math.min(3, currentTeam.opportunities < 3 ? currentTeam.opportunities + 1 : 3);
 
           await prisma.team.update({
             where: { id: currentTeam.teamId },
@@ -960,6 +1132,17 @@ export class CircoRoom extends Room<{ state: CircoState }> {
             teamName: currentTeam.name,
             opportunities: currentTeam.opportunities,
           });
+
+          // Si el equipo completa 3 oportunidades, gana la partida y pasa a la tarima
+          if (currentTeam.opportunities >= 3) {
+            this.clock.setTimeout(() => {
+              this.triggerVictoryPodium(
+                currentTeam.teamId,
+                `¡El equipo "${currentTeam.name}" consiguio 3 oportunidades y se corona campeon!`
+              );
+            }, 3000);
+            return;
+          }
 
           this.clock.setTimeout(async () => {
             currentTeam.tokenPosition = 0;
@@ -1280,7 +1463,7 @@ export class CircoRoom extends Room<{ state: CircoState }> {
       currentTeam.tokenPosition = 5;
       this.state.turnStep = 'CROWN_ANIMATING';
       this.state.activeCardType = 'CORONA';
-      currentTeam.opportunities += 1;
+      currentTeam.opportunities = Math.min(3, currentTeam.opportunities < 3 ? currentTeam.opportunities + 1 : 3);
 
       try {
         await prisma.team.update({
@@ -1301,6 +1484,17 @@ export class CircoRoom extends Room<{ state: CircoState }> {
         teamName: currentTeam.name,
         opportunities: currentTeam.opportunities,
       });
+
+      // Si el equipo completa 3 oportunidades, gana la partida y pasa a la tarima
+      if (currentTeam.opportunities >= 3) {
+        this.clock.setTimeout(() => {
+          this.triggerVictoryPodium(
+            currentTeam.teamId,
+            `¡El equipo "${currentTeam.name}" consiguio 3 oportunidades y se corona campeon!`
+          );
+        }, 3000);
+        return;
+      }
 
       this.clock.setTimeout(async () => {
         currentTeam.tokenPosition = 0;
@@ -1510,6 +1704,7 @@ export class CircoRoom extends Room<{ state: CircoState }> {
     console.log(`[INFO] Desechando CircoRoom para la partida ${this.state.matchId}`);
     this.timerInterval?.clear();
     this.questionTimerInterval?.clear();
+    this.podiumTimerInterval?.clear();
     CircoRoom.activeRoomsByMatchId.delete(this.state.matchId);
   }
 }

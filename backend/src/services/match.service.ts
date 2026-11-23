@@ -75,9 +75,6 @@ export class MatchService {
     const historyMatchesRaw = await prisma.match.findMany({
       where: {
         status: MatchStatus.FINISHED,
-        participants: {
-          some: { userId },
-        },
       },
       include: {
         creator: { select: { id: true, firstName: true, lastName: true } },
@@ -85,7 +82,7 @@ export class MatchService {
         participants: { select: { id: true } },
       },
       orderBy: { finishedAt: 'desc' },
-      take: 20,
+      take: 50,
     });
 
     const historyMatches = historyMatchesRaw.map((m) => ({
@@ -235,6 +232,10 @@ export class MatchService {
       teams: match.teams.map((t) => ({
         id: t.id,
         name: t.name,
+        score: t.score,
+        circoSeat: t.circoSeat,
+        circoOpportunities: t.circoOpportunities,
+        circoTokenPosition: t.circoTokenPosition,
         swampCompleted: t.swampCompleted,
         createdAt: t.createdAt,
         memberCount: t.members.length,

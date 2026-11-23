@@ -169,6 +169,27 @@
         1,
         1
       ]
+    },
+    {
+      "id": "tarima_1",
+      "model": "tarima.glb",
+      "category": "structure",
+      "name": "Tarima de Premiacion",
+      "position": [
+        150.0,
+        -14.85,
+        -18.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
     }
   ]
 }

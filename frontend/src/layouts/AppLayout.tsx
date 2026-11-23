@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Home, Users, Swords, LogOut, ChevronUp, Gamepad2 } from 'lucide-react';
+import { Home, Users, Swords, LogOut, ChevronUp, Gamepad2, User } from 'lucide-react';
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -68,6 +68,15 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <Link to="/matches" className="flex items-center gap-3">
                   <Swords className="h-4 w-4" />
                   <span>Partidas</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={location.pathname === '/welcome'}>
+                <Link to="/welcome" className="flex items-center gap-3">
+                  <User className="h-4 w-4" />
+                  <span>Mi Avatar 3D</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

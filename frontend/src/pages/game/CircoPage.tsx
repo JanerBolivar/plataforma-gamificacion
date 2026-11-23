@@ -9,6 +9,7 @@ import {
   QuestionDataPayload,
   QuestionResultPayload,
   SharkSelectTargetPromptPayload,
+  PodiumStartedPayload,
 } from '../../game/CircoNetworkManager';
 import { matchService } from '../../services/match.service';
 import { MatchLobbyDetails } from '../../types/match';
@@ -49,6 +50,7 @@ import {
   Send,
   Puzzle,
   ShieldAlert,
+  Trophy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -110,6 +112,12 @@ export const CircoPage: React.FC = () => {
   // Estados para Cartas de Tiburon (Eliminar una oportunidad)
   const [sharkSelectTargetPrompt, setSharkSelectTargetPrompt] = useState<SharkSelectTargetPromptPayload | null>(null);
   const [isSubmittingSharkTarget, setIsSubmittingSharkTarget] = useState<boolean>(false);
+
+  // Estados para Tarima de Premiacion (Fase PODIUM de 2 minutos)
+  const [podiumData, setPodiumData] = useState<PodiumStartedPayload | null>(null);
+  const [podiumTimeRemaining, setPodiumTimeRemaining] = useState<number>(0);
+  const [isMatchFinishedModalOpen, setIsMatchFinishedModalOpen] = useState<boolean>(false);
+  const [matchFinishedMessage, setMatchFinishedMessage] = useState<string>('');
 
   // Proximidad e interaccion contextual (tecla E)
   const [nearbyPrompt, setNearbyPrompt] = useState<string | null>(null);
@@ -598,8 +606,49 @@ export const CircoPage: React.FC = () => {
       scene.setActiveCard('CORONA');
     };
 
+    nm.onPodiumStarted = (payload) => {
+      setPhase('PODIUM');
+      setPodiumData(payload);
+      setPodiumTimeRemaining(payload.podiumTimeRemaining || 120);
+
+      // Reubicar localmente al jugador en su posicion asignada (tarima o plaza)
+      if (user && payload.placements && payload.placements[user.id]) {
+        const p = payload.placements[user.id];
+        const pc = scene.getPlayerController();
+        pc.setPosition(new THREE.Vector3(p.x, p.y, p.z));
+        pc.setYaw(p.ry);
+      }
+
+      // Iniciar celebracion visual y sonora en la escena 3D
+      const winningTeam = teams.find((t) => t.teamId === payload.winningTeamId);
+      scene.startPodiumCelebration(
+        payload.winningTeamName,
+        payload.winningTeamColor,
+        winningTeam?.score ?? 0,
+        winningTeam?.opportunities ?? 3
+      );
+
+      toast.success(`¡Premiación en Tarima! Ganador: ${payload.winningTeamName}`, { duration: 8000 });
+    };
+
+    nm.onPodiumTimeRemainingChanged = (seconds) => {
+      setPodiumTimeRemaining(seconds);
+    };
+
     nm.onMatchFinished = (payload) => {
-      toast.info(`Partida finalizada: ${payload.message}`);
+      setPhase('FINISHED');
+      setMatchFinishedMessage(payload.message || 'La partida ha concluido.');
+      setIsMatchFinishedModalOpen(true);
+      if (document.pointerLockElement) {
+        document.exitPointerLock?.();
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+      toast.info(payload.message || 'La partida ha concluido.');
+      setTimeout(() => {
+        navigate('/matches');
+      }, 4000);
     };
 
     nm.onMatchTerminated = (payload) => {
@@ -830,6 +879,9 @@ export const CircoPage: React.FC = () => {
 
   // Mensaje de cabecera en el temporizador
   const timerLabel = useMemo(() => {
+    if (phase === 'PODIUM') {
+      return `Premiación en Tarima • ${podiumData?.winningTeamName || 'Campeones'}`;
+    }
     if (phase === 'SELECTING_PODIUMS') {
       return `Esperando puestos: ${assignedSeatsCount}/${totalTeamsCount}`;
     }
@@ -837,7 +889,7 @@ export const CircoPage: React.FC = () => {
       return 'Partida Finalizada';
     }
     return `Turno: ${currentTurnTeamName}`;
-  }, [phase, assignedSeatsCount, totalTeamsCount, currentTurnTeamName]);
+  }, [phase, podiumData, assignedSeatsCount, totalTeamsCount, currentTurnTeamName]);
 
   return (
     <div
@@ -899,7 +951,47 @@ export const CircoPage: React.FC = () => {
 
       {/* Temporizador Superior Central con Fase y Turno */}
       {!loadingAssets && (
-        <GameTimerHUD timeRemaining={timeRemaining} label={timerLabel} />
+        <GameTimerHUD
+          timeRemaining={phase === 'PODIUM' ? podiumTimeRemaining : timeRemaining}
+          label={timerLabel}
+        />
+      )}
+
+      {/* Tarjeta de Celebracion en la Tarima de Premiacion */}
+      {!loadingAssets && phase === 'PODIUM' && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 w-[520px] max-w-[92vw] pointer-events-auto animate-in fade-in zoom-in-95 duration-500">
+          <Card className="bg-slate-900/95 backdrop-blur-md border-amber-500 shadow-2xl text-slate-100 shadow-amber-500/20">
+            <CardHeader className="pb-2 text-center border-b border-slate-800">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Trophy className="w-6 h-6 text-amber-400 animate-bounce" />
+                <Badge className="bg-amber-500 text-slate-950 font-black text-xs px-3 py-1 uppercase tracking-wider">
+                  ¡Campeones del Juego!
+                </Badge>
+                <Trophy className="w-6 h-6 text-amber-400 animate-bounce" />
+              </div>
+              <CardTitle
+                className="text-2xl font-black tracking-tight"
+                style={{ color: podiumData?.winningTeamColor || '#facc15' }}
+              >
+                {podiumData?.winningTeamName || 'Equipo Ganador'}
+              </CardTitle>
+              <CardDescription className="text-slate-300 text-xs mt-1">
+                {podiumData?.reason || '¡Felicitaciones por coronarse campeones del juego!'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3 pb-3 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-amber-300 font-mono text-sm font-semibold">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span>
+                  Tiempo de celebración en tarima: {Math.floor(podiumTimeRemaining / 60)}:{(podiumTimeRemaining % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Los campeones celebran en la tarima mientras los demás participantes observan desde la plaza.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Botones de control superior derecho y accion de Gradas */}
@@ -1522,6 +1614,42 @@ export const CircoPage: React.FC = () => {
 
           <DialogFooter className="text-xs text-slate-500 justify-center">
             Presione Alt para cerrar este menu
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogo de finalizacion permanente tras premiacion */}
+      <Dialog open={isMatchFinishedModalOpen} onOpenChange={() => {}}>
+        <DialogContent
+          container={gameRootRef.current}
+          className="bg-slate-900 border-amber-500/40 text-slate-100 max-w-md text-center"
+        >
+          <DialogHeader>
+            <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center mb-2">
+              <Trophy className="w-6 h-6 text-amber-400" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-slate-100">
+              Partida Finalizada
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 text-xs pt-2">
+              {matchFinishedMessage || 'La partida ha concluido. ¡Felicitaciones a todos los participantes!'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 text-xs text-slate-400">
+            Redirigiendo a la pantalla de partidas en unos momentos...
+          </div>
+          <DialogFooter className="justify-center">
+            <Button
+              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold"
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen().catch(() => {});
+                }
+                navigate('/matches');
+              }}
+            >
+              Ir a Partidas
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

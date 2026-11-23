@@ -76,6 +76,11 @@ export class CircoScene {
   private cardSpotLight: THREE.PointLight | null = null;
   private hasTriggeredCardSound: boolean = false;
 
+  // Tarima de premiacion y efectos de celebracion
+  private confettiParticles: THREE.Points | null = null;
+  private tarimaSpotLightLeft: THREE.PointLight | null = null;
+  private tarimaSpotLightRight: THREE.PointLight | null = null;
+
   private lastTime: number = 0;
   private animationFrameId: number | null = null;
   private isDisposed: boolean = false;
@@ -218,12 +223,15 @@ export class CircoScene {
     // 6. Precargar cartas y corona
     await this.preloadCardAndCrownModels();
 
+    // 7. Configurar rampa de acceso, iluminacion y efectos de la Tarima de Premiacion
+    this.setupTarima();
+
     // Asegurar posicion del jugador
     if (!this.playerController.hasLoadedDevPosition) {
       this.playerController.setPosition(new THREE.Vector3(36.42, -14.85, 120.52));
     }
 
-    // 7. El mundo 3D esta listo: aplicar configuracion de equipos y sincronizar colisiones
+    // 8. El mundo 3D esta listo: aplicar configuracion de equipos y sincronizar colisiones
     this.isWorldReady = true;
     this.applyTeamsConfiguration();
   }
@@ -499,6 +507,280 @@ export class CircoScene {
     console.log('[INFO] Jugador reubicado en las gradas del Circo.');
   }
 
+  /**
+   * Configura la plaza de premiacion exterior, puente de conexion, rampa de acceso,
+   * iluminacion y particulas para la celebracion del equipo ganador.
+   */
+  private setupTarima(): void {
+    const colliders = this.worldBuilder.getCollidersGroup();
+
+    // 1. Plataforma circular principal de la Plaza de Premiacion (exterior, al lado derecho del circo en X=150.0)
+    // Centro: X=150.0, Y=-15.1, Z=-10.0 (la cota superior queda en Y=-14.85, a nivel de piso)
+    const plazaRadius = 16.0;
+    const plazaHeight = 0.5;
+    const plazaGeo = new THREE.CylinderGeometry(plazaRadius, plazaRadius + 0.5, plazaHeight, 36);
+    const plazaMat = new THREE.MeshStandardMaterial({
+      color: 0x1e1828, // Deck oscuro elegante
+      roughness: 0.75,
+      metalness: 0.15,
+    });
+    const plazaMesh = new THREE.Mesh(plazaGeo, plazaMat);
+    plazaMesh.name = 'Plaza_Premiacion_Piso';
+    plazaMesh.position.set(150.0, -15.1, -10.0);
+    plazaMesh.updateMatrixWorld(true);
+    this.scene.add(plazaMesh);
+    if (colliders) colliders.add(plazaMesh.clone(true));
+
+    // Alfombra festiva central que conduce a la tarima
+    const carpetGeo = new THREE.BoxGeometry(6.0, 0.04, 15.0);
+    const carpetMat = new THREE.MeshStandardMaterial({
+      color: 0x581c87, // Purpura real
+      roughness: 0.6,
+      metalness: 0.1,
+    });
+    const carpetMesh = new THREE.Mesh(carpetGeo, carpetMat);
+    carpetMesh.position.set(150.0, -14.83, -11.0);
+    this.scene.add(carpetMesh);
+
+    // Borde perimetral dorado decorativo de la plataforma
+    const rimGeo = new THREE.TorusGeometry(plazaRadius, 0.22, 12, 36);
+    rimGeo.rotateX(Math.PI / 2);
+    const rimMat = new THREE.MeshStandardMaterial({
+      color: 0xd97706, // Dorado
+      roughness: 0.35,
+      metalness: 0.8,
+    });
+    const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+    rimMesh.position.set(150.0, -14.85, -10.0);
+    this.scene.add(rimMesh);
+
+    // 2. Barandillas protectoras continuas (360 grados) alrededor de la isla flotante
+    const railMat = new THREE.MeshStandardMaterial({
+      color: 0xb45309,
+      roughness: 0.5,
+      metalness: 0.4,
+    });
+
+    const segments = 24;
+    for (let i = 0; i < segments; i++) {
+      const angle = (i / segments) * Math.PI * 2;
+      const px = 150.0 + Math.cos(angle) * (plazaRadius - 0.2);
+      const pz = -10.0 + Math.sin(angle) * (plazaRadius - 0.2);
+
+      const postGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8);
+      const post = new THREE.Mesh(postGeo, railMat);
+      post.position.set(px, -14.25, pz);
+      this.scene.add(post);
+      if (colliders) colliders.add(post.clone(true));
+    }
+
+    const handrailGeo = new THREE.TorusGeometry(plazaRadius - 0.2, 0.08, 8, 48);
+    handrailGeo.rotateX(Math.PI / 2);
+    const handrailMesh = new THREE.Mesh(handrailGeo, railMat);
+    handrailMesh.position.set(150.0, -13.65, -10.0);
+    this.scene.add(handrailMesh);
+    if (colliders) colliders.add(handrailMesh.clone(true));
+
+    // Muro perimetral invisible de 7m de altura alrededor de toda la isla para impedir que los jugadores salten la barandilla
+    const barrierSegments = 32;
+    const tangentWidth = ((2 * Math.PI * (plazaRadius - 0.2)) / barrierSegments) + 0.35;
+    const wallHeight = 7.0;
+    const islandWallMat = new THREE.MeshBasicMaterial({ visible: false });
+
+    for (let i = 0; i < barrierSegments; i++) {
+      const angle = (i / barrierSegments) * Math.PI * 2;
+      const wx = 150.0 + Math.cos(angle) * (plazaRadius - 0.2);
+      const wz = -10.0 + Math.sin(angle) * (plazaRadius - 0.2);
+
+      const wallGeo = new THREE.BoxGeometry(0.4, wallHeight, tangentWidth);
+      const wallMesh = new THREE.Mesh(wallGeo, islandWallMat);
+      wallMesh.position.set(wx, -14.85 + wallHeight / 2, wz);
+      wallMesh.rotation.y = -angle; // Alinear tangencialmente al perimetro circular
+      wallMesh.updateMatrixWorld(true);
+      this.scene.add(wallMesh);
+      if (colliders) colliders.add(wallMesh.clone(true));
+    }
+
+    // 3. Asegurar que COLLIDER_LimitesTarima de tarima.glb sea invisible
+    const tarimaEntry = this.worldBuilder.getObjectById('tarima_1');
+    if (tarimaEntry) {
+      tarimaEntry.object.traverse((child) => {
+        if (child.name && child.name.includes('COLLIDER') && (child as THREE.Mesh).isMesh) {
+          (child as THREE.Mesh).material = new THREE.MeshBasicMaterial({ visible: false });
+        }
+      });
+    }
+
+    const updatedCollider = this.worldBuilder.rebuildCollisionBVH();
+    if (updatedCollider) {
+      this.playerController.setColliderMesh(updatedCollider);
+    }
+
+    // 4. Luces focales para iluminar la tarima durante la celebracion
+    this.tarimaSpotLightLeft = new THREE.PointLight(0xfbbf24, 0, 35);
+    this.tarimaSpotLightLeft.position.set(142.0, -7.5, -12.0);
+    this.scene.add(this.tarimaSpotLightLeft);
+
+    this.tarimaSpotLightRight = new THREE.PointLight(0x38bdf8, 0, 35);
+    this.tarimaSpotLightRight.position.set(158.0, -7.5, -12.0);
+    this.scene.add(this.tarimaSpotLightRight);
+
+    // Faroles decorativos con luz calida en el borde de la plaza
+    const lanternPositions = [
+      [138.0, -10.0],
+      [162.0, -10.0],
+      [150.0, 2.0],
+      [150.0, -22.0],
+    ];
+    lanternPositions.forEach(([lx, lz]) => {
+      const lanternLight = new THREE.PointLight(0xfef08a, 0.8, 14);
+      lanternLight.position.set(lx, -13.5, lz);
+      this.scene.add(lanternLight);
+    });
+
+    // 5. Sistema de particulas de confeti para celebracion en la plaza
+    const confettiCount = 350;
+    const confettiGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array(confettiCount * 3);
+    const colors = new Float32Array(confettiCount * 3);
+
+    const palette = [
+      new THREE.Color(0xf59e0b), // Dorado
+      new THREE.Color(0xef4444), // Rojo
+      new THREE.Color(0x3b82f6), // Azul
+      new THREE.Color(0x10b981), // Verde
+      new THREE.Color(0x8b5cf6), // Morado
+      new THREE.Color(0xf43f5e), // Rosa
+    ];
+
+    for (let i = 0; i < confettiCount; i++) {
+      positions[i * 3] = 150.0 + (Math.random() - 0.5) * 16.0;
+      positions[i * 3 + 1] = -14.85 + Math.random() * 10.0;
+      positions[i * 3 + 2] = -12.0 + (Math.random() - 0.5) * 14.0;
+
+      const c = palette[i % palette.length];
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
+    }
+
+    confettiGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    confettiGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const confettiMat = new THREE.PointsMaterial({
+      size: 0.22,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+    });
+
+    this.confettiParticles = new THREE.Points(confettiGeo, confettiMat);
+    this.confettiParticles.visible = false;
+    this.scene.add(this.confettiParticles);
+  }
+
+  /**
+   * Actualiza dinamicamente el lienzo de la pantalla gigante de la tarima con los datos del equipo ganador.
+   */
+  public updateTarimaScreen(
+    teamName: string,
+    teamColor: string,
+    score: number,
+    opportunities: number
+  ): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Fondo degradado nocturno
+    const grad = ctx.createLinearGradient(0, 0, 1024, 512);
+    grad.addColorStop(0, '#020617');
+    grad.addColorStop(0.5, '#1e1b4b');
+    grad.addColorStop(1, '#020617');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // Bordes decorativos dorados
+    ctx.lineWidth = 16;
+    ctx.strokeStyle = '#eab308';
+    ctx.strokeRect(12, 12, 1000, 488);
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fef08a';
+    ctx.strokeRect(26, 26, 972, 460);
+
+    // Titulo
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 50px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CAMPEONES DEL CIRCO', 512, 110);
+
+    // Nombre del equipo ganador con resplandor
+    ctx.fillStyle = teamColor || '#38bdf8';
+    ctx.font = 'bold 74px sans-serif';
+    ctx.shadowColor = teamColor || '#38bdf8';
+    ctx.shadowBlur = 20;
+    ctx.fillText(teamName.toUpperCase(), 512, 235);
+    ctx.shadowBlur = 0;
+
+    // Estadisticas
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 38px sans-serif';
+    ctx.fillText(`PUNTAJE: ${score} PTS   |   OPORTUNIDADES: ${opportunities}`, 512, 345);
+
+    // Mensaje de felicitaciones
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic 28px sans-serif';
+    ctx.fillText('¡FELICITACIONES POR LA VICTORIA!', 512, 430);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.center.set(0.5, 0.5);
+    texture.rotation = Math.PI;
+    texture.needsUpdate = true;
+
+    const tarimaEntry = this.worldBuilder.getObjectById('tarima_1');
+    if (tarimaEntry) {
+      tarimaEntry.object.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh && (child.name.includes('Iphone') || child.name.includes('Cube.008'))) {
+          const mesh = child as THREE.Mesh;
+          mesh.material = new THREE.MeshBasicMaterial({
+            map: texture,
+            side: THREE.DoubleSide,
+          });
+        }
+      });
+      console.log(`[INFO] Pantalla de tarima actualizada con datos del equipo ganador: ${teamName}`);
+    }
+  }
+
+  /**
+   * Inicia la celebracion de premiacion en tarima con iluminacion focal, sonido y confeti.
+   */
+  public startPodiumCelebration(
+    teamName: string,
+    teamColor: string,
+    score: number,
+    opportunities: number
+  ): void {
+    if (this.tarimaSpotLightLeft) {
+      this.tarimaSpotLightLeft.color.setHex(0xfbbf24);
+      this.tarimaSpotLightLeft.intensity = 4.0;
+    }
+    if (this.tarimaSpotLightRight) {
+      this.tarimaSpotLightRight.color.set(teamColor || '#38bdf8');
+      this.tarimaSpotLightRight.intensity = 4.0;
+    }
+
+    if (this.confettiParticles) {
+      this.confettiParticles.visible = true;
+    }
+
+    this.soundManager.playPortalActivatedSound();
+    this.updateTarimaScreen(teamName, teamColor, score, opportunities);
+  }
+
   // --- Gestion de avatares remotos con RemotePlayersManager ---
 
   public addRemotePlayer(sessionId: string, data: RemotePlayerData): void {
@@ -621,6 +903,25 @@ export class CircoScene {
 
     // 6. Actualizar avatares remotos
     this.remotePlayersManager.update(delta);
+
+    // 7. Animacion de particulas de confeti en tarima de premiacion
+    if (this.confettiParticles && this.confettiParticles.visible) {
+      const posAttr = this.confettiParticles.geometry.attributes.position as THREE.BufferAttribute;
+      const positions = posAttr.array as Float32Array;
+      const count = posAttr.count;
+      for (let i = 0; i < count; i++) {
+        // Descenso vertical suave
+        positions[i * 3 + 1] -= delta * 2.2;
+        // Balanceo senoidal
+        positions[i * 3] += Math.sin(Date.now() * 0.003 + i) * delta * 0.5;
+
+        // Reubicar arriba si cae por debajo de la plataforma
+        if (positions[i * 3 + 1] < -14.85) {
+          positions[i * 3 + 1] = -5.0 + Math.random() * 3.0;
+        }
+      }
+      posAttr.needsUpdate = true;
+    }
 
     this.renderer.render(this.scene, this.camera);
   }
