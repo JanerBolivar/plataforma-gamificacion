@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import * as THREE from 'three';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { matchService } from '../../services/match.service';
@@ -45,6 +46,7 @@ import {
 import { toast } from 'sonner';
 import { NetworkManager, TeamLeaderboardEntry } from '../../game/NetworkManager';
 import { Toaster } from '@/components/ui/sonner';
+import { GameAdminPanel, ConnectedUserItem } from '../../components/game/GameAdminPanel';
 import {
   GameLeaderboardHUD,
   GameTimerHUD,
@@ -82,6 +84,8 @@ export const GamePage: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [devCoords, setDevCoords] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [connectedUsers, setConnectedUsers] = useState<ConnectedUserItem[]>([]);
+  const isAdmin = user?.role === 'ADMIN';
 
   // Estado exclusivo para el Editor de Mapas en desarrollo
   const [isEditorActive, setIsEditorActive] = useState<boolean>(false);
@@ -401,6 +405,18 @@ export const GamePage: React.FC = () => {
         navigate('/matches', { replace: true });
       };
 
+      nm.onCollectibleSpawned = async (collectible) => {
+        if (swampSceneRef.current) {
+          await swampSceneRef.current.spawnSingleCollectible(collectible);
+        }
+      };
+
+      nm.onCollectiblesReloaded = async (collectibles) => {
+        if (swampSceneRef.current) {
+          await swampSceneRef.current.loadDynamicCollectibles(collectibles);
+        }
+      };
+
       nm.joinMatch(matchId).catch((err) => {
         console.warn('[WARN] No se pudo unir a la sala multijugador Colyseus:', err);
       });
@@ -445,9 +461,29 @@ export const GamePage: React.FC = () => {
       }
     }, 55);
 
+    // Intervalo de refresco de usuarios conectados para el panel admin (~1s)
+    const syncUsersInterval = setInterval(() => {
+      if (networkManagerRef.current) {
+        const list = Array.from(networkManagerRef.current.connectedPlayersMap.entries()).map(
+          ([sessionId, p]) => ({
+            sessionId,
+            userId: p.userId,
+            fullName: p.fullName,
+            teamName: p.teamName,
+            teamColor: p.teamColor,
+            x: Number(p.x.toFixed(2)),
+            y: Number(p.y.toFixed(2)),
+            z: Number(p.z.toFixed(2)),
+          })
+        );
+        setConnectedUsers(list);
+      }
+    }, 1000);
+
     return () => {
       clearInterval(checkNearbyInterval);
       clearInterval(syncMovementInterval);
+      clearInterval(syncUsersInterval);
       if (networkManagerRef.current) {
         networkManagerRef.current.leave();
         networkManagerRef.current = null;
@@ -480,6 +516,59 @@ export const GamePage: React.FC = () => {
     }
     handleResumeGame();
   };
+
+  // Metodos de teletransporte y gestion de la partida para administradores
+  const handleAdminTeleportTo = useCallback((x: number, y: number, z: number, label?: string) => {
+    if (swampSceneRef.current) {
+      swampSceneRef.current.getPlayerController().setPosition(new THREE.Vector3(x, y + 0.5, z));
+      toast.success(`Teletransportado a: ${label || `(${x}, ${z})`}`);
+    }
+  }, []);
+
+  const handleAdminSwitchStage = useCallback(
+    (stage: 'SWAMP' | 'CIRCO') => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      if (stage === 'CIRCO') {
+        navigate(`/game/${matchId}/circo`);
+      } else {
+        navigate(`/game/${matchId}/pantano`);
+      }
+    },
+    [matchId, navigate]
+  );
+
+  const handleAdminSpawnCollectible = useCallback(
+    async (type: string) => {
+      if (!matchId) return;
+      try {
+        const spawned = await matchService.spawnMatchCollectible(matchId, type);
+        if (swampSceneRef.current) {
+          await swampSceneRef.current.spawnSingleCollectible(spawned);
+        }
+        toast.success(`Objeto "${spawned.type}" generado en (${spawned.posX}, ${spawned.posZ})`);
+      } catch (err: any) {
+        const msg = err.response?.data?.message || err.message || 'Error al generar objeto';
+        toast.error(msg);
+      }
+    },
+    [matchId]
+  );
+
+  const handleAdminRegenerateCollectibles = useCallback(async () => {
+    if (!matchId) return;
+    try {
+      const reloaded = await matchService.regenerateMatchCollectibles(matchId);
+      if (swampSceneRef.current) {
+        await swampSceneRef.current.loadDynamicCollectibles(reloaded);
+      }
+      toast.success(`Se regeneraron ${reloaded.length} objetos en el mapa.`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Error al regenerar objetos';
+      toast.error(msg);
+    }
+  }, [matchId]);
 
   // Metodos de manipulacion del editor
   const handleToggleEditor = () => {
@@ -893,6 +982,7 @@ export const GamePage: React.FC = () => {
         <GameHelpBarHUD
           nearbyPrompt={nearbyPrompt}
           showEditorKey={import.meta.env.DEV}
+          showAdminKey={isAdmin}
           showInteractKey={true}
           interactLabel="Interactuar"
         />
@@ -981,6 +1071,28 @@ export const GamePage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Panel de Administrador flotante (solo usuarios con rol ADMIN) */}
+      {isAdmin && lobby?.match.status !== 'FINISHED' && (
+        <GameAdminPanel
+          matchId={matchId || ''}
+          currentStage="SWAMP"
+          connectedUsers={connectedUsers}
+          onOpenChange={(open) => {
+            if (swampSceneRef.current) {
+              const pc = swampSceneRef.current.getPlayerController();
+              pc.isMenuOpen = open;
+              if (open) {
+                pc.unlockPointer();
+              }
+            }
+          }}
+          onTeleportTo={handleAdminTeleportTo}
+          onSwitchStage={handleAdminSwitchStage}
+          onSpawnCollectible={handleAdminSpawnCollectible}
+          onRegenerateCollectibles={handleAdminRegenerateCollectibles}
+        />
+      )}
     </div>
   );
 };

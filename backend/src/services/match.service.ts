@@ -826,6 +826,178 @@ export class MatchService {
   }
 
   /**
+   * Genera de forma procedural un unico coleccionable respetando zonas de exclusion (Modo Admin).
+   */
+  public static async spawnSingleCollectible(
+    matchId: string,
+    type: CollectibleType,
+    userId: string,
+    userRole: Role
+  ) {
+    if (userRole !== Role.ADMIN) {
+      throw new Error('Solo los administradores pueden generar objetos en el mapa.');
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { id: true, status: true },
+    });
+
+    if (!match) {
+      throw new Error('La partida especificada no existe.');
+    }
+
+    if (match.status === MatchStatus.FINISHED || match.status === MatchStatus.CANCELLED) {
+      throw new Error('No es posible generar objetos en una partida finalizada.');
+    }
+
+    const { bounds, exclusionZones, maxSpawnRetries } = PANTANO_MAP_CONFIG;
+    let posX = 0;
+    let posZ = 0;
+    let placed = false;
+    let attempts = 0;
+
+    while (!placed && attempts < maxSpawnRetries) {
+      attempts++;
+      const candidateX = Number((Math.random() * (bounds.maxX - bounds.minX) + bounds.minX).toFixed(2));
+      const candidateZ = Number((Math.random() * (bounds.maxZ - bounds.minZ) + bounds.minZ).toFixed(2));
+
+      const inExclusionZone = exclusionZones.some((zone) => {
+        const dist = Math.hypot(candidateX - zone.centerX, candidateZ - zone.centerZ);
+        return dist < zone.radius;
+      });
+
+      if (!inExclusionZone) {
+        posX = candidateX;
+        posZ = candidateZ;
+        placed = true;
+      }
+    }
+
+    if (!placed) {
+      posX = 15;
+      posZ = 15;
+    }
+
+    const collectible = await prisma.matchCollectible.create({
+      data: {
+        matchId,
+        type,
+        posX,
+        posZ,
+      },
+    });
+
+    const swampRoom = SwampRoom.getActiveRoom(matchId);
+    if (swampRoom) {
+      swampRoom.spawnCollectible({
+        id: collectible.id,
+        type: collectible.type,
+        posX: collectible.posX,
+        posZ: collectible.posZ,
+      });
+    }
+
+    console.log(`[INFO] Admin ${userId} genero coleccionable ${type} en (${posX}, ${posZ}) para partida ${matchId}.`);
+    return collectible;
+  }
+
+  /**
+   * Regenera todo el conjunto de coleccionables de la partida respetando las zonas de exclusion (Modo Admin).
+   */
+  public static async regenerateMatchCollectibles(
+    matchId: string,
+    userId: string,
+    userRole: Role
+  ) {
+    if (userRole !== Role.ADMIN) {
+      throw new Error('Solo los administradores pueden regenerar los objetos del mapa.');
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: { teams: true },
+    });
+
+    if (!match) {
+      throw new Error('La partida especificada no existe.');
+    }
+
+    if (match.status === MatchStatus.FINISHED || match.status === MatchStatus.CANCELLED) {
+      throw new Error('No es posible regenerar objetos en una partida finalizada.');
+    }
+
+    const N = Math.max(2, match.teams.length);
+    const collectibleTypes: CollectibleType[] = [
+      CollectibleType.ADIVINALO,
+      CollectibleType.CARTA_PREGUNTA,
+      CollectibleType.TIBURON_AZUL,
+      CollectibleType.TIBURON_ROJO,
+    ];
+
+    const generatedPositions: Array<{ posX: number; posZ: number; type: CollectibleType }> = [];
+    const { bounds, exclusionZones, minDistanceBetweenItems, maxSpawnRetries } = PANTANO_MAP_CONFIG;
+
+    for (const type of collectibleTypes) {
+      for (let i = 0; i < N; i++) {
+        let placed = false;
+        let attempts = 0;
+
+        while (!placed && attempts < maxSpawnRetries) {
+          attempts++;
+          const posX = Number((Math.random() * (bounds.maxX - bounds.minX) + bounds.minX).toFixed(2));
+          const posZ = Number((Math.random() * (bounds.maxZ - bounds.minZ) + bounds.minZ).toFixed(2));
+
+          const inExclusionZone = exclusionZones.some((zone) => {
+            const dist = Math.hypot(posX - zone.centerX, posZ - zone.centerZ);
+            return dist < zone.radius;
+          });
+
+          if (inExclusionZone) continue;
+
+          const tooCloseToOther = generatedPositions.some((item) => {
+            const dist = Math.hypot(posX - item.posX, posZ - item.posZ);
+            return dist < minDistanceBetweenItems;
+          });
+
+          if (tooCloseToOther) continue;
+
+          generatedPositions.push({ posX, posZ, type });
+          placed = true;
+        }
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.matchCollectible.deleteMany({
+        where: { matchId },
+      });
+
+      if (generatedPositions.length > 0) {
+        await tx.matchCollectible.createMany({
+          data: generatedPositions.map((pos) => ({
+            matchId,
+            type: pos.type,
+            posX: pos.posX,
+            posZ: pos.posZ,
+          })),
+        });
+      }
+    });
+
+    const swampRoom = SwampRoom.getActiveRoom(matchId);
+    if (swampRoom) {
+      await swampRoom.reloadCollectibles();
+    }
+
+    console.log(`[INFO] Admin ${userId} regenero ${generatedPositions.length} coleccionables para la partida ${matchId}.`);
+    return prisma.matchCollectible.findMany({
+      where: { matchId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
    * Finaliza una partida activa.
    */
   public static async finishMatch(matchId: string, userId: string, userRole: Role) {

@@ -124,6 +124,9 @@ export class CircoNetworkManager {
   private lastActiveCardType: string = '';
   private lastTeamsJson: string = '';
 
+  // Mapa de jugadores remotos activos en la sala para consulta rapida
+  public connectedPlayersMap: Map<string, RemoteCircoPlayer> = new Map();
+
   // Callbacks para la vista de React y la escena 3D
   public onConnected?: (sessionId: string) => void;
   public onDisconnect?: () => void;
@@ -352,6 +355,7 @@ export class CircoNetworkManager {
         animState: player.animState || 'idle',
       };
 
+      this.connectedPlayersMap.set(sessionId, playerData);
       if (this.onPlayerJoined) {
         this.onPlayerJoined(sessionId, playerData);
       }
@@ -390,6 +394,7 @@ export class CircoNetworkManager {
         for (const knownId of Array.from(knownSessionIds)) {
           if (!currentActiveSessionIds.has(knownId)) {
             knownSessionIds.delete(knownId);
+            this.connectedPlayersMap.delete(knownId);
             if (this.onPlayerLeft) {
               this.onPlayerLeft(knownId);
             }
@@ -404,6 +409,7 @@ export class CircoNetworkManager {
 
     $((room.state as any).players).onRemove((_player: any, sessionId: string) => {
       knownSessionIds.delete(sessionId);
+      this.connectedPlayersMap.delete(sessionId);
       if (sessionId === this.mySessionId) return;
       if (this.onPlayerLeft) {
         this.onPlayerLeft(sessionId);
@@ -645,6 +651,8 @@ export class CircoNetworkManager {
     this.onMatchTerminated = undefined;
     this.onSessionTerminated = undefined;
     this.onErrorReceived = undefined;
+
+    this.connectedPlayersMap.clear();
 
     if (this.room) {
       try {

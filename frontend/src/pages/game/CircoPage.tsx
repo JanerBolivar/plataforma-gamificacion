@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { CircoScene } from '../../game/CircoScene';
@@ -51,6 +52,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import { GameAdminPanel, ConnectedUserItem } from '../../components/game/GameAdminPanel';
 
 export const CircoPage: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
@@ -68,6 +70,8 @@ export const CircoPage: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [playerCoords, setPlayerCoords] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [connectedUsers, setConnectedUsers] = useState<ConnectedUserItem[]>([]);
+  const isAdmin = user?.role === 'ADMIN';
 
   // Estados de carga de assets 3D
   const [loadingAssets, setLoadingAssets] = useState<boolean>(true);
@@ -624,13 +628,54 @@ export const CircoPage: React.FC = () => {
       console.error('[ERROR] Error al conectar a circo_room:', err);
     });
 
+    const syncUsersInterval = setInterval(() => {
+      if (networkManagerRef.current) {
+        const list = Array.from(networkManagerRef.current.connectedPlayersMap.entries()).map(
+          ([sessionId, p]) => ({
+            sessionId,
+            userId: p.userId,
+            fullName: p.fullName,
+            teamName: p.teamName,
+            teamColor: p.teamColor,
+            x: Number(p.x.toFixed(2)),
+            y: Number(p.y.toFixed(2)),
+            z: Number(p.z.toFixed(2)),
+          })
+        );
+        setConnectedUsers(list);
+      }
+    }, 1000);
+
     return () => {
+      clearInterval(syncUsersInterval);
       nm.leave();
       networkManagerRef.current = null;
       scene.dispose();
       circoSceneRef.current = null;
     };
   }, [matchId, navigate]);
+
+  // Metodos de teletransporte y gestion de la partida para administradores
+  const handleAdminTeleportTo = useCallback((x: number, y: number, z: number, label?: string) => {
+    if (circoSceneRef.current) {
+      circoSceneRef.current.getPlayerController().setPosition(new THREE.Vector3(x, y + 0.5, z));
+      toast.success(`Teletransportado a: ${label || `(${x}, ${z})`}`);
+    }
+  }, []);
+
+  const handleAdminSwitchStage = useCallback(
+    (stage: 'SWAMP' | 'CIRCO') => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      if (stage === 'SWAMP') {
+        navigate(`/game/${matchId}/pantano`);
+      } else {
+        navigate(`/game/${matchId}/circo`);
+      }
+    },
+    [matchId, navigate]
+  );
 
   // Responder pregunta activa
   const handleAnswerQuestion = useCallback(
@@ -1375,12 +1420,37 @@ export const CircoPage: React.FC = () => {
 
       {/* Controles en barra inferior con aviso de proximidad E */}
       {!loadingAssets && (
-        <GameHelpBarHUD nearbyPrompt={nearbyPrompt} showInteractKey={!!nearbyPrompt} interactLabel="Interactuar" />
+        <GameHelpBarHUD
+          nearbyPrompt={nearbyPrompt}
+          showAdminKey={isAdmin}
+          showInteractKey={!!nearbyPrompt}
+          interactLabel="Interactuar"
+        />
       )}
 
       {/* Coordenadas en esquina inferior izquierda */}
       {!loadingAssets && (
         <GameCoordinatesHUD coords={playerCoords} />
+      )}
+
+      {/* Panel de Administrador flotante (solo usuarios con rol ADMIN) */}
+      {isAdmin && lobby?.match.status !== 'FINISHED' && (
+        <GameAdminPanel
+          matchId={matchId || ''}
+          currentStage="CIRCO"
+          connectedUsers={connectedUsers}
+          onOpenChange={(open) => {
+            if (circoSceneRef.current) {
+              const pc = circoSceneRef.current.getPlayerController();
+              pc.isMenuOpen = open;
+              if (open) {
+                pc.unlockPointer();
+              }
+            }
+          }}
+          onTeleportTo={handleAdminTeleportTo}
+          onSwitchStage={handleAdminSwitchStage}
+        />
       )}
 
       {/* Dialogo modal de pausa */}

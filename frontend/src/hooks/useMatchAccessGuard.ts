@@ -56,27 +56,11 @@ export function useMatchAccessGuard(
 
         if (!isMounted) return;
 
-        // 1. Validacion de pertenencia a un equipo de la partida
-        const foundTeam = lobbyData.teams.find((t) =>
-          t.members.some((m) => m.userId === user.id)
-        );
-
-        if (!foundTeam) {
-          toast.warning('No pertenece a ningun equipo en esta partida.');
-          navigate('/matches', { replace: true });
-          return;
-        }
-
         const match = lobbyData.match;
         const currentStage = match.currentStage || 'LOBBY';
+        const isAdmin = user.role === 'ADMIN';
 
-        // 2. Validacion de estado y etapa general
-        if (match.status === 'WAITING' || currentStage === 'LOBBY') {
-          toast.info('La partida aun se encuentra en sala de espera.');
-          navigate(`/matches/${matchId}`, { replace: true });
-          return;
-        }
-
+        // 1. Validacion de finalizacion de la partida (aplica para todos los roles)
         if (
           match.status === 'FINISHED' ||
           match.status === 'CANCELLED' ||
@@ -87,7 +71,37 @@ export function useMatchAccessGuard(
           return;
         }
 
-        // 3. Validacion progresiva segun la etapa requerida
+        // 2. Si el usuario cuenta con rol ADMIN, se le concede acceso irrestricto sin exigir equipo ni etapa
+        if (isAdmin) {
+          const foundTeam = lobbyData.teams.find((t) =>
+            t.members.some((m) => m.userId === user.id)
+          ) || null;
+
+          setLobby(lobbyData);
+          setMyTeam(foundTeam);
+          setIsAuthorized(true);
+          return;
+        }
+
+        // 3. Validacion de pertenencia a un equipo de la partida para usuarios regulares
+        const foundTeam = lobbyData.teams.find((t) =>
+          t.members.some((m) => m.userId === user.id)
+        );
+
+        if (!foundTeam) {
+          toast.warning('No pertenece a ningun equipo en esta partida.');
+          navigate('/matches', { replace: true });
+          return;
+        }
+
+        // 4. Validacion de estado y etapa general para usuarios regulares
+        if (match.status === 'WAITING' || currentStage === 'LOBBY') {
+          toast.info('La partida aun se encuentra en sala de espera.');
+          navigate(`/matches/${matchId}`, { replace: true });
+          return;
+        }
+
+        // 5. Validacion progresiva segun la etapa requerida
         if (requiredStage === 'SWAMP') {
           if (currentStage === 'CIRCO') {
             toast.info('La etapa del Pantano ha concluido. Redirigiendo al Circo...');

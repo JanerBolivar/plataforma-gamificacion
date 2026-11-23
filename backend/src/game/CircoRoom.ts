@@ -93,6 +93,7 @@ interface AuthContext {
     firstName: string;
     lastName: string;
     email: string;
+    role?: string;
   };
   team: {
     id: string;
@@ -100,6 +101,7 @@ interface AuthContext {
     score: number;
   };
   avatarModel?: string;
+  isAdmin?: boolean;
 }
 
 function parseCookieHeader(rawCookie?: string | null): Record<string, string> {
@@ -230,6 +232,17 @@ export class CircoRoom extends Room<{ state: CircoState }> {
 
     const userId = decoded.sub;
 
+    const userRecord = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true },
+    });
+
+    if (!userRecord) {
+      throw new ServerError(404, 'Usuario no encontrado.');
+    }
+
+    const isAdmin = userRecord.role === 'ADMIN';
+
     let participant = await prisma.matchParticipant.findUnique({
       where: {
         matchId_userId: { matchId, userId },
@@ -241,60 +254,74 @@ export class CircoRoom extends Room<{ state: CircoState }> {
     });
 
     if (!participant) {
-      const match = await prisma.match.findUnique({
-        where: { id: matchId },
-        include: { teams: true },
-      });
+      if (isAdmin) {
+        console.log(`[INFO] Administrador conectandose a CircoRoom como supervisor: ${userRecord.firstName} ${userRecord.lastName}`);
+      } else {
+        const match = await prisma.match.findUnique({
+          where: { id: matchId },
+          include: { teams: true },
+        });
 
-      if (match && match.creatorId === userId) {
-        const defaultTeam =
-          match.teams[0] ||
-          (await prisma.team.create({
+        if (match && match.creatorId === userId) {
+          const defaultTeam =
+            match.teams[0] ||
+            (await prisma.team.create({
+              data: {
+                name: 'Equipo 1',
+                matchId,
+              },
+            }));
+
+          participant = await prisma.matchParticipant.create({
+            data: {
+              matchId,
+              userId,
+              teamId: defaultTeam.id,
+            },
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, email: true } },
+              team: { select: { id: true, name: true, score: true } },
+            },
+          });
+        } else {
+          console.warn(`[WARN] Conexion rechazada en CircoRoom (matchId: ${matchId}): Usuario ${userId} no inscrito.`);
+          throw new ServerError(403, 'El usuario no esta inscrito como participante en esta partida.');
+        }
+      }
+    }
+
+    let assignedTeam = participant?.team;
+    if (!assignedTeam) {
+      if (isAdmin) {
+        assignedTeam = {
+          id: 'admin',
+          name: 'Administración',
+          score: 0,
+        };
+      } else {
+        let team = await prisma.team.findFirst({
+          where: { matchId },
+        });
+
+        if (!team) {
+          team = await prisma.team.create({
             data: {
               name: 'Equipo 1',
               matchId,
             },
-          }));
+          });
+        }
 
-        participant = await prisma.matchParticipant.create({
-          data: {
-            matchId,
-            userId,
-            teamId: defaultTeam.id,
-          },
+        participant = await prisma.matchParticipant.update({
+          where: { id: participant!.id },
+          data: { teamId: team.id },
           include: {
             user: { select: { id: true, firstName: true, lastName: true, email: true } },
             team: { select: { id: true, name: true, score: true } },
           },
         });
-      } else {
-        console.warn(`[WARN] Conexion rechazada en CircoRoom (matchId: ${matchId}): Usuario ${userId} no inscrito.`);
-        throw new ServerError(403, 'El usuario no esta inscrito como participante en esta partida.');
+        assignedTeam = participant.team!;
       }
-    }
-
-    if (!participant.team) {
-      let team = await prisma.team.findFirst({
-        where: { matchId },
-      });
-
-      if (!team) {
-        team = await prisma.team.create({
-          data: {
-            name: 'Equipo 1',
-            matchId,
-          },
-        });
-      }
-
-      participant = await prisma.matchParticipant.update({
-        where: { id: participant.id },
-        data: { teamId: team.id },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          team: { select: { id: true, name: true, score: true } },
-        },
-      });
     }
 
     let avatarModel = 'female';
@@ -312,9 +339,10 @@ export class CircoRoom extends Room<{ state: CircoState }> {
 
     return {
       userId,
-      user: participant.user,
-      team: participant.team!,
+      user: userRecord,
+      team: assignedTeam,
       avatarModel,
+      isAdmin,
     };
   }
 

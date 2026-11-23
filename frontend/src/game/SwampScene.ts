@@ -212,6 +212,17 @@ export class SwampScene {
   }
 
   /**
+   * Instancia dinamicamente un nuevo coleccionable generado en tiempo real (Modo Admin).
+   */
+  public async spawnSingleCollectible(collectible: MatchCollectibleDto): Promise<void> {
+    await this.collectiblesManager.spawnSingleCollectible(
+      collectible,
+      this.scene,
+      (x, z) => this.worldBuilder.getTerrainHeight(x, z)
+    );
+  }
+
+  /**
    * Restablece la posicion del jugador al punto de inicio.
    */
   public resetPlayerSpawn(): void {

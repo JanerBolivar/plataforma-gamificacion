@@ -180,6 +180,33 @@ export class MatchController {
     }
   }
 
+  public static async spawnCollectible(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { type } = req.body;
+      if (!type) {
+        res.status(400).json({ status: 'error', message: 'Debe especificar el tipo de coleccionable.' });
+        return;
+      }
+      const collectible = await MatchService.spawnSingleCollectible(id, type, req.user!.id, req.user!.role);
+      res.status(201).json({ status: 'ok', data: collectible });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al generar coleccionable';
+      res.status(400).json({ status: 'error', message });
+    }
+  }
+
+  public static async regenerateCollectibles(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const collectibles = await MatchService.regenerateMatchCollectibles(id, req.user!.id, req.user!.role);
+      res.status(200).json({ status: 'ok', data: collectibles });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al regenerar coleccionables';
+      res.status(400).json({ status: 'error', message });
+    }
+  }
+
   public static async startMatch(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;

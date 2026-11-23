@@ -60,6 +60,9 @@ export class NetworkManager {
   private lastMoveSentTime: number = 0;
   private lastSentPos = { x: 0, y: 0, z: 0, ry: 0, animState: '' };
 
+  // Mapa de jugadores remotos activos en la sala para consulta rapida
+  public connectedPlayersMap: Map<string, RemotePlayerState> = new Map();
+
   // Callbacks para la escena 3D y la interfaz React
   public onPlayerJoined?: (sessionId: string, player: RemotePlayerState) => void;
   public onPlayerLeft?: (sessionId: string) => void;
@@ -67,6 +70,8 @@ export class NetworkManager {
   public onTimeRemainingChanged?: (seconds: number) => void;
   public onLeaderboardChanged?: (teams: TeamLeaderboardEntry[]) => void;
   public onCollectibleCollected?: (collectibleId: string, collectedByTeamId: string) => void;
+  public onCollectibleSpawned?: (collectible: any) => void;
+  public onCollectiblesReloaded?: (collectibles: any[]) => void;
   public onCardCollected?: (event: CardCollectedEvent) => void;
   public onPortalActivated?: (event: PortalActivatedEvent) => void;
   public onTimeExpired?: (event: TimeExpiredEvent) => void;
@@ -163,6 +168,7 @@ export class NetworkManager {
         animState: player.animState || 'idle',
       };
 
+      this.connectedPlayersMap.set(sessionId, playerData);
       if (this.onPlayerJoined) {
         this.onPlayerJoined(sessionId, playerData);
       }
@@ -202,6 +208,7 @@ export class NetworkManager {
         for (const knownId of Array.from(knownSessionIds)) {
           if (!currentActiveSessionIds.has(knownId)) {
             knownSessionIds.delete(knownId);
+            this.connectedPlayersMap.delete(knownId);
             if (this.onPlayerLeft) {
               this.onPlayerLeft(knownId);
             }
@@ -216,6 +223,7 @@ export class NetworkManager {
 
     $((this.room.state as any).players).onRemove((_player: any, sessionId: string) => {
       knownSessionIds.delete(sessionId);
+      this.connectedPlayersMap.delete(sessionId);
       if (sessionId === this.mySessionId) return;
       if (this.onPlayerLeft) {
         this.onPlayerLeft(sessionId);
@@ -330,6 +338,18 @@ export class NetworkManager {
       }
     });
 
+    this.room.onMessage('collectible_spawned', (msg: { collectible: any }) => {
+      if (this.onCollectibleSpawned) {
+        this.onCollectibleSpawned(msg.collectible);
+      }
+    });
+
+    this.room.onMessage('collectibles_reloaded', (msg: { collectibles: any[] }) => {
+      if (this.onCollectiblesReloaded) {
+        this.onCollectiblesReloaded(msg.collectibles);
+      }
+    });
+
     this.room.onMessage('time_expired', (msg: TimeExpiredEvent) => {
       if (this.onTimeExpired) {
         this.onTimeExpired(msg);
@@ -416,6 +436,8 @@ export class NetworkManager {
     this.onSessionTerminated = undefined;
     this.onConnected = undefined;
     this.onDisconnect = undefined;
+
+    this.connectedPlayersMap.clear();
 
     if (this.room) {
       try {

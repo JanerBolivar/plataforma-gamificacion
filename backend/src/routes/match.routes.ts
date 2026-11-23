@@ -11,6 +11,8 @@ router.get('/', MatchController.getMatches);
 router.post('/', MatchController.createMatch);
 router.get('/:id', MatchController.getMatchLobby);
 router.get('/:id/collectibles', MatchController.getMatchCollectibles);
+router.post('/:id/collectibles/spawn', MatchController.spawnCollectible);
+router.post('/:id/collectibles/regenerate', MatchController.regenerateCollectibles);
 router.post('/:id/join', MatchController.joinMatch);
 router.post('/:id/leave', MatchController.leaveMatch);
 

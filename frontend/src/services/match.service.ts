@@ -78,4 +78,19 @@ export const matchService = {
     );
     return response.data.data;
   },
+
+  async spawnMatchCollectible(matchId: string, type: string): Promise<MatchCollectibleDto> {
+    const response = await apiClient.post<{ status: string; data: MatchCollectibleDto }>(
+      `/api/matches/${matchId}/collectibles/spawn`,
+      { type }
+    );
+    return response.data.data;
+  },
+
+  async regenerateMatchCollectibles(matchId: string): Promise<MatchCollectibleDto[]> {
+    const response = await apiClient.post<{ status: string; data: MatchCollectibleDto[] }>(
+      `/api/matches/${matchId}/collectibles/regenerate`
+    );
+    return response.data.data;
+  },
 };

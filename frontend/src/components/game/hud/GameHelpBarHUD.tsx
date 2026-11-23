@@ -9,6 +9,7 @@ export interface GameHelpControl {
 export interface GameHelpBarHUDProps {
   nearbyPrompt?: string | null;
   showEditorKey?: boolean;
+  showAdminKey?: boolean;
   showInteractKey?: boolean;
   interactLabel?: string;
   customControls?: GameHelpControl[];
@@ -21,6 +22,7 @@ export interface GameHelpBarHUDProps {
 export const GameHelpBarHUD: React.FC<GameHelpBarHUDProps> = ({
   nearbyPrompt,
   showEditorKey = false,
+  showAdminKey = false,
   showInteractKey = true,
   interactLabel = 'Interactuar',
   customControls,
@@ -79,6 +81,15 @@ export const GameHelpBarHUD: React.FC<GameHelpBarHUDProps> = ({
                 <span>•</span>
                 <span className="flex items-center gap-1 font-mono text-sky-400">
                   <strong className="text-sky-300">F2</strong> Editor
+                </span>
+              </>
+            )}
+            {showAdminKey && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 font-mono text-purple-400">
+                  <strong className="text-purple-300 bg-purple-950/80 border border-purple-800 px-1 rounded text-[10px]">.</strong>{' '}
+                  Admin
                 </span>
               </>
             )}

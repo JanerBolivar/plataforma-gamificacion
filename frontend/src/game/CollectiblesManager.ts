@@ -152,6 +152,61 @@ export class CollectiblesManager {
     console.log(`[INFO] Se instanciaron exitosamente ${spawnedCount} objetos coleccionables en el terreno.`);
   }
 
+  /**
+   * Instancia de forma dinamica un unico coleccionable en la escena (Modo Admin).
+   */
+  public async spawnSingleCollectible(
+    c: MatchCollectibleDto,
+    scene: THREE.Scene,
+    getTerrainHeight: (x: number, z: number) => number
+  ): Promise<void> {
+    const config = COLLECTIBLE_CONFIG[c.type];
+    if (!config) return;
+
+    if (!this.prototypeCache.has(config.modelFile)) {
+      try {
+        const gltf = await this.loadGLTF(`/models/pantano/${config.modelFile}`);
+        this.prototypeCache.set(config.modelFile, gltf.scene);
+      } catch (err) {
+        console.error(`[ERROR] Fallo al cargar modelo de coleccionable: ${config.modelFile}`, err);
+        return;
+      }
+    }
+
+    const proto = this.prototypeCache.get(config.modelFile);
+    if (!proto) return;
+
+    if (this.items.has(c.id)) {
+      const old = this.items.get(c.id);
+      if (old) scene.remove(old.model);
+      this.items.delete(c.id);
+    }
+
+    const instance = proto.clone(true);
+    instance.name = `Collectible_${c.id}`;
+
+    const groundY = getTerrainHeight(c.posX, c.posZ);
+    const targetY = groundY + config.yOffset;
+    const basePos = new THREE.Vector3(c.posX, targetY, c.posZ);
+
+    instance.position.copy(basePos);
+    instance.scale.set(config.scale, config.scale, config.scale);
+    instance.updateMatrixWorld(true);
+
+    scene.add(instance);
+
+    this.items.set(c.id, {
+      id: c.id,
+      name: config.name,
+      model: instance,
+      collected: !!c.collectedByTeamId,
+      position: basePos,
+      interactRadius: 3.5,
+    });
+
+    console.log(`[INFO] Objeto coleccionable "${config.name}" instanciado en (${c.posX}, ${targetY.toFixed(2)}, ${c.posZ}).`);
+  }
+
   private loadGLTF(url: string): Promise<GLTF> {
     return new Promise((resolve, reject) => {
       this.gltfLoader.load(

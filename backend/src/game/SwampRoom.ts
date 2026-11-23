@@ -26,6 +26,7 @@ interface AuthContext {
     firstName: string;
     lastName: string;
     email: string;
+    role?: string;
   };
   team: {
     id: string;
@@ -33,6 +34,7 @@ interface AuthContext {
     score: number;
   };
   avatarModel?: string;
+  isAdmin?: boolean;
 }
 
 /**
@@ -124,6 +126,46 @@ export class SwampRoom extends Room<{ state: SwampState }> {
   }
 
   /**
+   * Instancia dinamicamente un nuevo coleccionable generado en tiempo de ejecucion (Modo Admin).
+   */
+  public spawnCollectible(collectible: { id: string; type: string; posX: number; posZ: number }): void {
+    const colSchema = new CollectibleSchema();
+    colSchema.id = collectible.id;
+    colSchema.type = collectible.type;
+    colSchema.posX = collectible.posX;
+    colSchema.posZ = collectible.posZ;
+    colSchema.collected = false;
+
+    this.state.collectibles.set(collectible.id, colSchema);
+    this.broadcast('collectible_spawned', { collectible });
+    console.log(`[INFO] Nuevo coleccionable ${collectible.type} instanciado por admin en SwampRoom (${collectible.posX}, ${collectible.posZ}).`);
+  }
+
+  /**
+   * Recarga todos los coleccionables desde la base de datos (Modo Admin).
+   */
+  public async reloadCollectibles(): Promise<void> {
+    const collectibles = await prisma.matchCollectible.findMany({
+      where: { matchId: this.state.matchId },
+    });
+
+    this.state.collectibles.clear();
+    collectibles.forEach((c) => {
+      const colSchema = new CollectibleSchema();
+      colSchema.id = c.id;
+      colSchema.type = c.type;
+      colSchema.posX = c.posX;
+      colSchema.posZ = c.posZ;
+      colSchema.collected = !!c.collectedByTeamId;
+      colSchema.collectedByTeamId = c.collectedByTeamId || '';
+      this.state.collectibles.set(c.id, colSchema);
+    });
+
+    this.broadcast('collectibles_reloaded', { collectibles });
+    console.log(`[INFO] Coleccionables recargados en SwampRoom para la partida ${this.state.matchId}.`);
+  }
+
+  /**
    * Autentica la conexion WebSocket validando el token JWT desde cookies HttpOnly o cabeceras.
    */
   public async onAuth(
@@ -179,6 +221,18 @@ export class SwampRoom extends Room<{ state: SwampState }> {
 
     const userId = decoded.sub;
 
+    // Consultar usuario en base de datos para verificar su rol y existencia
+    const userRecord = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true },
+    });
+
+    if (!userRecord) {
+      throw new ServerError(404, 'Usuario no encontrado.');
+    }
+
+    const isAdmin = userRecord.role === 'ADMIN';
+
     // 2. Verificar que el usuario sea participante registrado con equipo en la partida
     let participant = await prisma.matchParticipant.findUnique({
       where: {
@@ -194,62 +248,76 @@ export class SwampRoom extends Room<{ state: SwampState }> {
     });
 
     if (!participant) {
-      // Si el usuario es el creador de la partida, asegurar su registro como participante
-      const match = await prisma.match.findUnique({
-        where: { id: matchId },
-        include: { teams: true },
-      });
+      if (isAdmin) {
+        console.log(`[INFO] Administrador conectandose a SwampRoom como supervisor: ${userRecord.firstName} ${userRecord.lastName}`);
+      } else {
+        // Si el usuario es el creador de la partida, asegurar su registro como participante
+        const match = await prisma.match.findUnique({
+          where: { id: matchId },
+          include: { teams: true },
+        });
 
-      if (match && match.creatorId === userId) {
-        const defaultTeam =
-          match.teams[0] ||
-          (await prisma.team.create({
+        if (match && match.creatorId === userId) {
+          const defaultTeam =
+            match.teams[0] ||
+            (await prisma.team.create({
+              data: {
+                name: 'Equipo 1',
+                matchId,
+              },
+            }));
+
+          participant = await prisma.matchParticipant.create({
+            data: {
+              matchId,
+              userId,
+              teamId: defaultTeam.id,
+            },
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, email: true } },
+              team: { select: { id: true, name: true, score: true } },
+            },
+          });
+        } else {
+          console.warn(`[WARN] Conexion rechazada en SwampRoom (matchId: ${matchId}): Usuario ${userId} no inscrito.`);
+          throw new ServerError(403, 'El usuario no esta inscrito como participante en esta partida.');
+        }
+      }
+    }
+
+    // Si el participante no tiene equipo asignado todavia (o es admin sin equipo)
+    let assignedTeam = participant?.team;
+    if (!assignedTeam) {
+      if (isAdmin) {
+        assignedTeam = {
+          id: 'admin',
+          name: 'Administración',
+          score: 0,
+        };
+      } else {
+        let team = await prisma.team.findFirst({
+          where: { matchId },
+        });
+
+        if (!team) {
+          team = await prisma.team.create({
             data: {
               name: 'Equipo 1',
               matchId,
             },
-          }));
+          });
+        }
 
-        participant = await prisma.matchParticipant.create({
-          data: {
-            matchId,
-            userId,
-            teamId: defaultTeam.id,
-          },
+        participant = await prisma.matchParticipant.update({
+          where: { id: participant!.id },
+          data: { teamId: team.id },
           include: {
             user: { select: { id: true, firstName: true, lastName: true, email: true } },
             team: { select: { id: true, name: true, score: true } },
           },
         });
-      } else {
-        console.warn(`[WARN] Conexion rechazada en SwampRoom (matchId: ${matchId}): Usuario ${userId} no inscrito.`);
-        throw new ServerError(403, 'El usuario no esta inscrito como participante en esta partida.');
+        assignedTeam = participant.team!;
       }
-    }
-
-    // Si el participante no tiene equipo asignado todavia, asignarle el primer equipo de la partida
-    if (!participant.team) {
-      let team = await prisma.team.findFirst({
-        where: { matchId },
-      });
-
-      if (!team) {
-        team = await prisma.team.create({
-          data: {
-            name: 'Equipo 1',
-            matchId,
-          },
-        });
-      }
-
-      participant = await prisma.matchParticipant.update({
-        where: { id: participant.id },
-        data: { teamId: team.id },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          team: { select: { id: true, name: true, score: true } },
-        },
-      });
     }
 
     // Consultar preferencia de avatar si existe en la base de datos
@@ -267,14 +335,15 @@ export class SwampRoom extends Room<{ state: SwampState }> {
     }
 
     console.log(
-      `[INFO] Usuario autenticado exitosamente en SwampRoom: ${participant.user.firstName} ${participant.user.lastName} (Equipo: ${participant.team!.name}, Avatar: ${avatarModel})`
+      `[INFO] Usuario autenticado exitosamente en SwampRoom: ${userRecord.firstName} ${userRecord.lastName} (Equipo: ${assignedTeam.name}, Avatar: ${avatarModel})`
     );
 
     return {
       userId,
-      user: participant.user,
-      team: participant.team!,
+      user: userRecord,
+      team: assignedTeam,
       avatarModel,
+      isAdmin,
     };
   }
 
