@@ -537,6 +537,12 @@ export class SwampRoom extends Room<{ state: SwampState }> {
         points,
       });
 
+      this.broadcast('collectible_collected', {
+        collectibleId: col.id,
+        collectedByTeamId: player.teamId,
+        collectibleType: col.type,
+      });
+
       console.log(`[INFO] Equipo "${teamState.name}" recolecto ${col.type} en puesto ${order} (+${points} pts).`);
 
       // Si el equipo completa los 4 tipos de cartas, activar su portal dimensional

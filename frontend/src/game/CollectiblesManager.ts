@@ -50,6 +50,7 @@ const COLLECTIBLE_CONFIG: Record<CollectibleType, CollectibleConfig> = {
  */
 export class CollectiblesManager {
   private items: Map<string, CollectibleItem> = new Map();
+  private collectedIds: Set<string> = new Set();
   private portalModel: THREE.Group | null = null;
   private portalActive: boolean = false;
   private portalLight: THREE.PointLight | null = null;
@@ -111,6 +112,12 @@ export class CollectiblesManager {
     // 2. Instanciar cada coleccionable en sus coordenadas (X, Z) y ajustar altura Y analitica
     let spawnedCount = 0;
     for (const c of collectibles) {
+      // Si el objeto ya fue recolectado previamente por algun equipo, no se instancia en el mapa
+      if (c.collectedByTeamId) {
+        this.collectedIds.add(c.id);
+        continue;
+      }
+
       const config = COLLECTIBLE_CONFIG[c.type];
       if (!config) continue;
 
@@ -132,16 +139,11 @@ export class CollectiblesManager {
       // Los coleccionables NO se agregan al grupo de colisiones solidas
       scene.add(instance);
 
-      const isCollected = !!c.collectedByTeamId;
-      if (isCollected) {
-        instance.visible = false;
-      }
-
       this.items.set(c.id, {
         id: c.id,
         name: config.name,
         model: instance,
-        collected: isCollected,
+        collected: false,
         position: basePos,
         interactRadius: 3.5,
       });
@@ -160,6 +162,8 @@ export class CollectiblesManager {
     scene: THREE.Scene,
     getTerrainHeight: (x: number, z: number) => number
   ): Promise<void> {
+    if (c.collectedByTeamId) return;
+
     const config = COLLECTIBLE_CONFIG[c.type];
     if (!config) return;
 
@@ -307,16 +311,48 @@ export class CollectiblesManager {
   }
 
   /**
-   * Marca un objeto como recolectado y oculta su modelo visual.
+   * Elimina fisicamente el modelo coleccionable de la escena Three.js y libera sus recursos en memoria.
+   */
+  public removeCollectible(id: string): void {
+    const item = this.items.get(id);
+    this.collectedIds.add(id);
+
+    if (item) {
+      item.collected = true;
+      if (item.model) {
+        if (this.activeScene) {
+          this.activeScene.remove(item.model);
+        } else if (item.model.parent) {
+          item.model.parent.remove(item.model);
+        }
+
+        // Liberar geometrias y materiales asociados para optimizar memoria WebGL
+        item.model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.geometry?.dispose();
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach((mat) => mat.dispose());
+            } else {
+              mesh.material?.dispose();
+            }
+          }
+        });
+      }
+
+      this.items.delete(id);
+      console.log(`[INFO] Objeto coleccionable "${item.name}" (${id}) eliminado fisicamente del mapa.`);
+    }
+  }
+
+  /**
+   * Marca un objeto como recolectado, lo elimina fisicamente del mapa y comprueba el portal.
    */
   public collect(id: string): boolean {
     const item = this.items.get(id);
     if (!item || item.collected) return false;
 
-    item.collected = true;
-    item.model.visible = false;
-
-    console.log(`[INFO] Objeto recolectado: ${item.name} (${id})`);
+    this.removeCollectible(id);
 
     const collectedCount = this.getCollectedCount();
     const itemsState = this.getItemsState();
@@ -333,13 +369,10 @@ export class CollectiblesManager {
   }
 
   /**
-   * Marca un coleccionable como recolectado de forma remota y oculta su modelo visual en la escena.
+   * Marca un coleccionable como recolectado de forma remota y lo elimina fisicamente de la escena.
    */
   public markCollected(id: string): void {
-    const item = this.items.get(id);
-    if (!item) return;
-    item.collected = true;
-    item.model.visible = false;
+    this.removeCollectible(id);
   }
 
   /**
@@ -380,15 +413,14 @@ export class CollectiblesManager {
   }
 
   public getCollectedCount(): number {
-    let count = 0;
-    this.items.forEach((item) => {
-      if (item.collected) count++;
-    });
-    return count;
+    return this.collectedIds.size;
   }
 
   public getItemsState(): Record<string, boolean> {
     const state: Record<string, boolean> = {};
+    this.collectedIds.forEach((id) => {
+      state[id] = true;
+    });
     this.items.forEach((item, key) => {
       state[key] = item.collected;
     });
@@ -404,9 +436,21 @@ export class CollectiblesManager {
     if (targetScene) {
       this.items.forEach((item) => {
         targetScene.remove(item.model);
+        item.model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.geometry?.dispose();
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach((mat) => mat.dispose());
+            } else {
+              mesh.material?.dispose();
+            }
+          }
+        });
       });
     }
     this.items.clear();
+    this.collectedIds.clear();
     this.prototypeCache.clear();
     this.portalModel = null;
     this.portalLight = null;

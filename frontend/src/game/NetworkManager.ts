@@ -326,6 +326,12 @@ export class NetworkManager {
     });
 
     // 5. Mensajes globales de sala
+    this.room.onMessage('collectible_collected', (msg: { collectibleId: string; collectedByTeamId: string; collectibleType: string }) => {
+      if (this.onCollectibleCollected) {
+        this.onCollectibleCollected(msg.collectibleId, msg.collectedByTeamId);
+      }
+    });
+
     this.room.onMessage('card_collected', (msg: CardCollectedEvent) => {
       if (this.onCardCollected) {
         this.onCardCollected(msg);

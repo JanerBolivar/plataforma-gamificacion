@@ -25,14 +25,16 @@ El proyecto ofrece un ecosistema inmersivo en el navegador web que combina mecan
 - **Entorno de Ejecucion:** Node.js 20 LTS
 - **Lenguaje:** TypeScript 5
 - **Framework Web:** Express 4.x
+- **Servidor Multijugador en Tiempo Real:** Colyseus Server (`colyseus` 0.15+) con salas `SwampRoom` y `CircoRoom`
 - **Capa de Persistencia (ORM):** Prisma ORM 5.x
 - **Base de Datos Relacional:** PostgreSQL 16
-- **Autenticacion:** Microsoft Entra ID (OAuth 2.0 / OpenID Connect) + JWT (JSON Web Tokens)
+- **Autenticacion:** Microsoft Entra ID (OAuth 2.0 / OpenID Connect) + JWT (JSON Web Tokens) en cookies HttpOnly
 - **Seguridad:** Helmet, CORS restringido, Cookie-Parser, express-rate-limit, Zod
 
 ### Frontend
 - **Libreria de Interfaz:** React 18
 - **Herramienta de Construccion:** Vite 8 con soporte TypeScript
+- **Cliente Multijugador:** Colyseus SDK (`@colyseus/sdk` ^0.18.10)
 - **Motor 3D y Renderizado:** Three.js (r187)
 - **Fisicas y Colisiones Complejas:** `three-mesh-bvh` (v0.9.18) con `StaticGeometryGenerator`
 - **Audio del Juego:** Web Audio API (sintesis procedural nativa sin descarga de archivos pesados)
@@ -106,6 +108,7 @@ erDiagram
     User ||--o{ TeamInvitation : "envia/recibe"
     Match ||--o{ Team : "contiene"
     Match ||--o{ MatchParticipant : "inscribe"
+    Match ||--o{ MatchCollectible : "genera"
     Team ||--o{ MatchParticipant : "agrupa"
     Team ||--o{ TeamInvitation : "genera"
 
@@ -126,6 +129,7 @@ erDiagram
         String description
         String code UK
         MatchStatus status "DRAFT | LOBBY | IN_PROGRESS | FINISHED | CANCELLED"
+        MatchStage currentStage "LOBBY | SWAMP | CIRCO | FINISHED"
         Int maxPlayers
         Int maxTeams
         String hostId FK
@@ -139,7 +143,19 @@ erDiagram
         String name
         String color
         Int score
+        Boolean swampCompleted
         String matchId FK
+        DateTime createdAt
+    }
+
+    MatchCollectible {
+        String id PK
+        String matchId FK
+        String type "ADIVINALO | CARTA_PREGUNTA | TIBURON_AZUL | TIBURON_ROJO"
+        Float posX
+        Float posZ
+        String collectedByTeamId FK
+        DateTime collectedAt
         DateTime createdAt
     }
 
@@ -165,32 +181,39 @@ erDiagram
 
 ---
 
-## 5. El Entorno 3D: "Isla del Pantano"
+## 5. Escenarios 3D y Dinamicas de Juego
 
-El modulo de juego cliente (`frontend/src/game/`) implementa un entorno de exploracion tridimensional optimizado:
+La plataforma cuenta con una progresion multietapa coordinada entre el servidor Colyseus y los clientes WebGL:
 
-### Caracteristicas Tecnicas y Mecanicas
+### A. Escenario 1: "Isla del Pantano" (`SWAMP`)
+1. **Exploracion y Recoleccion Multijugador:**
+   - Los equipos deben explorar el terreno y recolectar cuatro tipos unicos de cartas: `ADIVINALO`, `CARTA_PREGUNTA`, `TIBURON_AZUL` y `TIBURON_ROJO`.
+   - **Eliminacion Fisica Inmediata:** Cuando un participante recolecta un objeto coleccionable, este se elimina fisicamente del grafo de escena 3D en todos los clientes conectados, liberando la memoria WebGL (`dispose()`) y previniendo interacciones duplicadas.
+   - Puntuacion decreciente segun orden de llegada por tipo de carta (de 10 a 1 punto).
+2. **Activacion de Portal Dimensional:**
+   - Al completar las 4 cartas, se activa visualmente el portal del equipo y se habilita la transicion hacia el siguiente escenario.
+3. **Geometria y Colisiones con `three-mesh-bvh`:**
+   - Objetos estaticos fusionados en una malla unificada mediante `StaticGeometryGenerator`, indexando un arbol BVH para colisiones de precision milimetrica a 60 FPS.
+4. **Editor de Mapas en Vivo (`F2`):**
+   - Herramienta para disenadores de niveles que permite seleccionar objetos, trasladarlos, rotarlos o escalarlos con *Gizmos* y exportar el mapa.
 
-1. **Geometria y Colisiones con `three-mesh-bvh`:**
-   - La totalidad de objetos estaticos (terreno base, chozas, empalizadas, troncos y accesorios) se fusionan en una malla de colision unica mediante `StaticGeometryGenerator`.
-   - Se indexa una estructura BVH (*Bounding Volume Hierarchy*) que permite evaluar raycasting y proyecciones de capsulas del jugador a 60 FPS con precision milimetrica de triangulos.
-2. **Acceso a la Choza Elevada mediante Parkour de Troncos:**
-   - Para resolver la accesibilidad a la puerta elevada de la choza ceremonial sin requerir rampas artificiales que danan la armonia visual, se implemento una progresion de troncos de madera en disposicion escalonada (*Sky Run*).
-   - El jugador debe saltar secuencialmente entre los troncos para alcanzar la plataforma superior.
-3. **Texturizado Ligero Procedural:**
-   - Texturas de pasto y terreno sintetizadas mediante shaders matematicos livianos, evitando la descarga de pesados atlas de texturas 4K.
-4. **Agua Dinamica y Niebla:**
-   - Superficie acuatica en las cotas inferiores con ondulacion senoidal y niebla ambiental volumetrica caracteristica del pantano.
-5. **Audio Procedural (Web Audio API):**
-   - El modulo `AudioManager.ts` genera sintetizadores de sonido en tiempo real:
-     - Ruido blanco filtrado para pasos sobre pasto.
-     - Ondas liquidas y filtros paso-bajo con resonancia para chapoteo en agua.
-     - Osciladores modulados para saltos y amortiguacion de caidas.
-6. **Seguridad y Limites del Mapa:**
-   - Muro perimetral invisible de colision para impedir la salida del escenario.
-   - Algoritmo de deteccion de vacio: si el jugador desciende por debajo de `Y = -10.0`, el sistema reubica al jugador en la posicion inicial de aparicion de forma segura.
-7. **Editor de Mapas en Vivo (`F2`):**
-   - Herramienta para disenadores de niveles que permite seleccionar cualquier objeto del escenario, desplazarlo en los tres ejes con *Gizmos* (TransformControls), rotarlo, escalar y descargar el archivo `pantano-map.json` actualizado.
+### B. Escenario 2: "Circo" (`CIRCO`)
+1. **Arena de Preguntas por Turnos y Ruleta 3D:**
+   - Cada equipo cuenta con un representante activo. El servidor gestiona el turno, la seleccion de preguntas mediante ruleta y la respuesta sincronizada en tiempo real.
+2. **Fase 5C: Cartas de Tiburon (`TIBURON_ROJO` y `TIBURON_AZUL`):**
+   - Al sortearse una carta de tiburon, el servidor ejecuta una dinamica equiprobable entre 4 opciones:
+     - `REMOVE_OPPORTUNITY`: Inicia el estado `SHARK_SELECTING_TARGET` y un temporizador regresivo (`CIRCO_SHARK_LETTER_TIME_SECONDS`) para que el representante elija a que equipo rival descontarle una oportunidad.
+     - `DIRECT_POINTS`: Otorga puntos directos al equipo en turno.
+     - `EXTRA_OPPORTUNITY`: Concede una oportunidad adicional.
+     - `PENALTY_POINTS`: Aplica deduccion de puntos.
+
+### C. Modo Administrador en Vivo
+- **Acceso Exclusivo para Rol `ADMIN`:** Permite ingresar como supervisor a cualquier partida no finalizada sin requerir asignacion a equipos.
+- **Panel de Control Flotante (`.`):**
+   - Lista de usuarios conectados en tiempo real con boton para teletransportarse a su posicion exacta (`TP`).
+   - Regeneracion global o generacion procedural individual de coleccionables en el Pantano respetando zonas de exclusion.
+   - Teletransporte directo a puntos de referencia (landmarks) y conmutacion libre de escenarios (Pantano / Circo).
+   - Apertura con la tecla `.` (Punto), liberando automaticamente la captura del raton (*Pointer Lock*).
 
 ### Tabla de Controles del Usuario
 
@@ -199,8 +222,10 @@ El modulo de juego cliente (`frontend/src/game/`) implementa un entorno de explo
 | `W`, `A`, `S`, `D` / Flechas | Movimiento direccional (adelante, izquierda, atras, derecha) |
 | `Shift` (sostenido) | Correr (aumento de velocidad de traslacion) |
 | `Espacio` | Saltar |
+| `E` | Interactuar con cartas coleccionables y portales dimensionales |
 | `Clic izquierdo` | Bloquear cursor del raton (*Pointer Lock*) e iniciar control de camara |
 | `Alt` o Boton Menu | Abrir/Cerrar menu de pausa (compatible con modo Pantalla Completa) |
+| `.` (Punto) | Abrir/Cerrar Panel de Administracion (exclusivo para usuarios con rol `ADMIN`) |
 | `F2` | Activar / Desactivar el Editor de Escenario en tiempo real |
 | `Escape` | Liberar puntero de raton a nivel de navegador |
 
@@ -235,6 +260,9 @@ MICROSOFT_REDIRECT_URI=http://localhost:4000/api/auth/microsoft/callback
 JWT_SECRET=super_secret_jwt_key_universidad_amazonia_2026
 JWT_EXPIRES_IN=8h
 ADMIN_EMAILS=j.munoz@udla.edu.co
+
+# Configuracion de Dinamicas de Juego
+CIRCO_SHARK_LETTER_TIME_SECONDS=90
 
 # Frontend Web
 FRONTEND_URL=http://localhost:3000
@@ -317,8 +345,11 @@ Todas las respuestas de la API siguen la estructura unificada `{ success: boolea
 | `GET` | `/api/matches/:id` | Detalle, participantes y estado de partida | Autenticado |
 | `POST` | `/api/matches/join` | Unirse a una partida mediante codigo | Autenticado (`STUDENT`) |
 | `POST` | `/api/matches/:id/teams` | Creacion de un equipo en la partida | Autenticado |
-| `POST` | `/api/matches/:id/start` | Cambiar estado a `IN_PROGRESS` | Creador de la partida |
+| `POST` | `/api/matches/:id/start` | Cambiar estado a `IN_PROGRESS` e iniciar en `SWAMP` (min. 2 equipos) | Creador de la partida |
 | `POST` | `/api/matches/:id/finish` | Finalizar partida y consolidar puntajes | Creador de la partida |
+| `GET` | `/api/matches/:id/collectibles` | Obtener coleccionables generados de la partida | Autenticado |
+| `POST` | `/api/matches/:id/collectibles/spawn` | Instanciar un coleccionable procedural en coordenadas seguras | Rol `ADMIN` |
+| `POST` | `/api/matches/:id/collectibles/regenerate` | Regenerar todos los coleccionables respetando exclusiones | Rol `ADMIN` |
 
 ---
 

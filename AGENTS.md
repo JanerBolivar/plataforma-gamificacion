@@ -8,9 +8,9 @@ Guia operativa para agentes de Inteligencia Artificial y desarrolladores de soft
 
 ## 1. Resumen del Proyecto
 
-- **Proposito:** Plataforma web interactiva para la evaluacion pedagogica y dinamicas de aprendizaje gamificadas en entornos 3D en tiempo real ("Isla del Pantano").
-- **Backend:** Node.js 20+ con TypeScript, Express, Prisma ORM, PostgreSQL 16 y autenticacion Microsoft Entra ID + JWT. Puerto por defecto: `4000`.
-- **Frontend:** SPA con React 18, TypeScript, Vite 8, Three.js (r187), `three-mesh-bvh` (v0.9.18), Web Audio API y TailwindCSS. Puerto por defecto: `5173` (desarrollo) o `3000` (produccion con Nginx).
+- **Proposito:** Plataforma web interactiva para la evaluacion pedagogica y dinamicas de aprendizaje gamificadas en entornos 3D multijugador en tiempo real ("Isla del Pantano" y "Circo").
+- **Backend:** Node.js 20+ con TypeScript, Express, Colyseus Server (`colyseus` 0.15+), Prisma ORM, PostgreSQL 16 y autenticacion Microsoft Entra ID + JWT. Puerto por defecto: `4000`.
+- **Frontend:** SPA con React 18, TypeScript, Vite 8, Colyseus SDK (`@colyseus/sdk` ^0.18.10), Three.js (r187), `three-mesh-bvh` (v0.9.18), Web Audio API y TailwindCSS. Puerto por defecto: `5173` (desarrollo) o `3000` (produccion con Nginx).
 - **Sin tests automatizados:** La verificacion se realiza mediante compilacion estricta de TypeScript y pruebas funcionales en navegador o peticiones HTTP.
 - **Formato y convenciones:** TypeScript estricto (`tsc --noEmit`), modulos ES, codigo documentado en espanol tecnico, tercera persona o impersonal. **Prohibicion estricta de emojis** en cualquier archivo, comentario, log o respuesta.
 
@@ -74,21 +74,30 @@ flowchart TD
 
 | Archivo | Responsabilidad Primaria |
 |---------|--------------------------|
-| `frontend/src/game/SwampScene.ts` | Nucleo del bucle de juego 3D (*render loop*), luces, niebla, cielo y coordinacion de subsistemas. |
+| `backend/src/game/SwampRoom.ts` | Sala Colyseus para la Isla del Pantano: gestion de movimiento sincronizado, recoleccion de cartas, activacion de portales, control de sesion unica y regeneracion procedural. |
+| `backend/src/game/CircoRoom.ts` | Sala Colyseus para el Circo: gestion de turnos, ruleta 3D, temporizadores y dinamica de Cartas de Tiburon (Fase 5C: eliminacion de oportunidades, penalizaciones, puntos directos). |
+| `frontend/src/game/SwampScene.ts` | Nucleo del bucle de juego 3D (*render loop*) del Pantano: luces, niebla, cielo, jugadores remotos y coordinacion de subsistemas. |
+| `frontend/src/game/CircoScene.ts` | Nucleo del bucle de juego 3D del Circo: animaciones de carpa, ruleta central, cartas flotantes y avatares de representantes. |
 | `frontend/src/game/WorldBuilder.ts` | Carga de modelos GLB/DAE, lectura de `pantano-map.json`, generacion de malla unificada con `StaticGeometryGenerator` y calculo de arbol BVH. |
+| `frontend/src/game/CollectiblesManager.ts` | Gestion del ciclo de vida de coleccionables en el Pantano: instanciacion dinamica, eliminacion fisica inmediata del grafo de escena 3D y liberacion de memoria WebGL (`dispose`). |
 | `frontend/src/game/PlayerController.ts` | Control de camara en primera persona, captura de mouse (*Pointer Lock*), gravedad, saltos y deteccion de colisiones mediante proyeccion de capsula contra el arbol BVH. |
+| `frontend/src/game/NetworkManager.ts` | Conexion y sincronizacion del cliente con `SwampRoom` mediante `@colyseus/sdk`. |
+| `frontend/src/game/CircoNetworkManager.ts` | Conexion y sincronizacion del cliente con `CircoRoom` mediante `@colyseus/sdk`. |
 | `frontend/src/game/AudioManager.ts` | Sintetizador de audio en tiempo real mediante Web Audio API para pasos (pasto/tierra), chapoteo en agua y saltos. |
 | `frontend/src/game/MapEditor.ts` | Editor de escenarios en tiempo real activado con tecla `F2`. Permite transformar objetos y generar el JSON actualizado. |
 | `frontend/public/maps/pantano-map.json` | Unica fuente de verdad de la disposicion espacial de objetos 3D, escalas y rotaciones del escenario. |
-| `frontend/src/pages/GamePage.tsx` | Contenedor React del juego. Gestiona atajos de teclado (`Alt`, `F2`), HUD superior e inferior, y menus de pausa compatibles con pantalla completa. |
+| `frontend/src/pages/game/GamePage.tsx` | Contenedor React de la Isla del Pantano (`/game/:matchId/pantano`). HUD, conexion Colyseus, modal de pausa y panel de administracion. |
+| `frontend/src/pages/game/CircoPage.tsx` | Contenedor React del Circo (`/game/:matchId/circo`). Sincronizacion de turnos, modales de preguntas, seleccion de objetivos en cartas tiburon y HUD. |
+| `frontend/src/components/game/GameAdminPanel.tsx` | Panel flotante de administracion en tiempo de juego (atajo `.`). Lista de usuarios conectados con TP, spawning/regeneracion de coleccionables y cambio de escenarios. |
+| `frontend/src/components/MatchAccessGuard.tsx` | Componente guard de navegacion que valida etapa requerida (`LOBBY`, `SWAMP`, `CIRCO`, `FINISHED`) y pertenencia a equipos con bypass para rol `ADMIN`. |
 | `frontend/src/components/ui/dialog.tsx` | Componente de dialogo adaptado con la propiedad `container` para renderizarse dentro del elemento en pantalla completa. |
-| `backend/src/server.ts` | Punto de entrada del servidor backend, gestion del ciclo de vida y conexion con base de datos. |
+| `backend/src/server.ts` | Punto de entrada del servidor backend (Express + Colyseus WebSocket Server), ciclo de vida y base de datos. |
 | `backend/src/app.ts` | Configuracion de Express, CORS, Helmet, CookieParser y enrutamiento modular bajo `/api`. |
 | `backend/src/config/index.ts` | Fuente unica centralizada para la lectura de variables de entorno. |
 | `backend/src/middlewares/auth.middleware.ts` | Extraccion y verificacion del JWT desde cookie HttpOnly o cabecera `Authorization`. |
 | `backend/src/middlewares/role.middleware.ts` | Verificacion estricta de roles de usuario (`ADMIN`, `TEACHER`, `STUDENT`). |
 | `backend/src/controllers/auth.controller.ts` | Flujo de autenticacion con Microsoft Entra ID y emision de tokens de sesion. |
-| `backend/src/controllers/match.controller.ts` | Logica de creacion de salas, inscripcion de participantes, administracion de equipos y cambio de estados de partidas. |
+| `backend/src/controllers/match.controller.ts` | Logica de creacion de salas, inscripcion de participantes, administracion de equipos, spawning de coleccionables y cambio de estados de partidas. |
 
 ---
 
@@ -126,6 +135,22 @@ flowchart TD
 ### 3.6 Prohibicion Absoluta de Emojis
 
 - **Regla:** En cumplimiento de las directrices de calidad y sobriedad tecnica, esta totalmente prohibido el uso de caracteres emoji en comentarios de codigo, mensajes de consola (`console.log`, `console.error`), respuestas JSON de la API, cadenas de interfaz de usuario o documentacion tecnica. Utilizar unicamente texto formal en espanol y simbologia estandar.
+
+### 3.7 Eliminacion Fisica Inmediata de Objetos Coleccionables
+
+- **Regla:** Al recolectarse una carta en el Pantano, esta debe retirarse fisicamente del grafo de escena 3D y de la memoria de colisiones / interaccion tanto en el cliente recolector como en todos los clientes conectados a la sala.
+- **Implementacion:** Queda prohibido limitarse a asignar `model.visible = false`. Debe invocarse `removeCollectible(id)`, que ejecuta `scene.remove(item.model)`, recorre las mallas liberando geometrias y materiales (`dispose()`), elimina el elemento de `items` y registra el ID en `collectedIds`. En cargas iniciales, los objetos con `collectedByTeamId` no deben instanciarse en la escena.
+
+### 3.8 Control de Sesion Unica y Concurrencia en Colyseus
+
+- **Regla:** Un usuario unicamente puede tener una conexion activa a la sala de juego. Si se detecta un nuevo intento de conexion desde otra ventana o dispositivo con el mismo `userId`, el servidor debe desconectar de forma segura la sesion previa.
+- **Implementacion:** Al autenticar un nuevo cliente en `SwampRoom` o `CircoRoom`, el servidor busca sesiones previas con el mismo identificador de usuario, envia un mensaje `session_terminated` con la razon explicita y procede con `prevClient.leave(4001)` antes de registrar la nueva sesion. En el frontend, el evento redirige al usuario a `/matches` con la notificacion correspondiente.
+
+### 3.9 Control de Acceso Multietapa y Modo Administrador
+
+- **Regla:** Los participantes comunes solo pueden ingresar a la pantalla correspondiente a la etapa actual de su partida (`currentStage`: `LOBBY`, `SWAMP`, `CIRCO`, `FINISHED`) y deben pertenecer a un equipo registrado.
+- **Excepcion de Administrador:** Los usuarios con rol `ADMIN` cuentan con bypass completo en `MatchAccessGuard`: pueden acceder a cualquier partida activa como supervisores sin estar asignados a un equipo.
+- **Panel de Administracion (`.`):** Al abrir el panel con la tecla `.` (Punto), el sistema debe liberar el bloqueo de puntero (`document.exitPointerLock()` y `pc.unlockPointer()`) y marcar `pc.isMenuOpen = true` para congelar la camara y evitar bloqueos accidentales.
 
 ---
 
@@ -217,7 +242,8 @@ Antes de reportar una tarea como completada, verifique:
 - [ ] ¿Se respetaron los archivos de configuracion sin hardcodear credenciales ni URLs?
 - [ ] ¿Las posiciones y escalas de objetos 3D estan en `pantano-map.json` y no en codigo TypeScript?
 - [ ] ¿Los dialogos modales utilizan el contenedor de pantalla completa para evitar quedar ocultos?
-- [ ] ¿Al pausar o abrir modales se llama a `unlockPointer()` en el controlador del jugador?
+- [ ] ¿Al pausar, abrir modales o abrir el Panel de Administrador (`.`) se llama a `unlockPointer()` en el controlador del jugador?
+- [ ] ¿Los objetos coleccionables recolectados se eliminan fisicamente del grafo de escena Three.js y de memoria con `removeCollectible`?
 - [ ] ¿Se evito por completo el uso de emojis en logs, mensajes, comentarios y documentacion?
 - [ ] ¿Se empleo unicamente espanol tecnico y redaccion en tercera persona o impersonal?
 
@@ -231,6 +257,8 @@ Antes de reportar una tarea como completada, verifique:
 | Usar `new THREE.Box3()` para colisionar con casas o terreno | Integrar la geometria en `WorldBuilder.ts` con `StaticGeometryGenerator` y generar el arbol BVH. |
 | Montar modales de Radix UI directamente en `document.body` | Pasar `container={gameRootRef.current}` para asegurar compatibilidad en pantalla completa. |
 | Usar unicamente la tecla `Escape` para pausar el juego | Usar la tecla `Alt` y botones en pantalla con captura de evento (`capture: true`). |
-| Dejar el cursor bloqueado (`PointerLock`) cuando se despliega un menu | Invocar `playerController.unlockPointer()` al detectar apertura de modales o pausa. |
+| Ocultar coleccionables únicamente con `model.visible = false` | Invocar `removeCollectible(id)` para desregistrar de `items`, retirar de `scene` y liberar geometrias/materiales (`dispose`). |
+| Instanciar en el mapa objetos coleccionables que ya poseen `collectedByTeamId` | Omitir su instanciacion en `loadDynamicCollectibles` con `if (c.collectedByTeamId) continue;`. |
+| Dejar el cursor bloqueado (`PointerLock`) cuando se despliega un menu o panel admin | Invocar `playerController.unlockPointer()` y congelar la camara con `pc.isMenuOpen = true`. |
 | Incluir emojis en mensajes de log o en la interfaz | Redactar mensajes en texto formal en espanol, sin emojis ni caracteres decorativos. |
 | Cargar librerias pesadas de audio o archivos `.mp3` de alto peso | Utilizar los sintetizadores matematicos nativos de `AudioManager.ts` (Web Audio API). |

@@ -310,6 +310,8 @@ export const GamePage: React.FC = () => {
     // Conectar interaccion de tecla E con cartas o portal
     scene.onInteract = (nearby) => {
       if (nearby.type === 'item' && nearby.id) {
+        // Remover fisicamente el objeto de inmediato en el cliente local para evitar pulsaciones duplicadas
+        scene.collectiblesManager.removeCollectible(nearby.id);
         networkManagerRef.current?.sendCollect(nearby.id);
       } else if (nearby.type === 'portal') {
         if (portalActiveRef.current) {
@@ -358,7 +360,7 @@ export const GamePage: React.FC = () => {
       };
 
       nm.onCollectibleCollected = (collectibleId) => {
-        scene.collectiblesManager.markCollected(collectibleId);
+        scene.collectiblesManager.removeCollectible(collectibleId);
       };
 
       nm.onCardCollected = (evt) => {
