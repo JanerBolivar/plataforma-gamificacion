@@ -72,6 +72,8 @@ model Match {
   createdAt      DateTime           @default(now())
   startedAt      DateTime?
   finishedAt     DateTime?
+  circoCurrentTurnSeat Int           @default(1)
+  circoArrowRotationY  Float         @default(0)
 
   creator        User               @relation("MatchCreator", fields: [creatorId], references: [id])
   teams          Team[]
@@ -94,11 +96,15 @@ model MatchCollectible {
 }
 
 model Team {
-  id           String             @id @default(uuid())
-  name         String
-  score        Int                @default(0)
-  matchId      String
-  createdAt    DateTime           @default(now())
+  id                    String             @id @default(uuid())
+  name                  String
+  score                 Int                @default(0)
+  matchId               String
+  circoSeat             Int?
+  circoRepresentativeId String?
+  circoTokenPosition    Int                @default(0)
+  circoOpportunities    Int                @default(0)
+  createdAt             DateTime           @default(now())
 
   match        Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
   members      MatchParticipant[]

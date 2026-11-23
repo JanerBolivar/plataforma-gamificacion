@@ -1,0 +1,804 @@
+[
+  {
+    "id": 1,
+    "pregunta": "¿Quién escribió la estrategia del océano azul?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Peter Druker & Elthon Mayo"
+      },
+      {
+        "key": "b",
+        "texto": "Federik Winslow Taylor & Hernri Fayol"
+      },
+      {
+        "key": "c",
+        "texto": "W. Chan Kim & Rene Mauborgne"
+      },
+      {
+        "key": "d",
+        "texto": "Ninguno de los anteriores"
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 2,
+    "pregunta": "El triunfo del caso de océanos de oportunidades del Circo du Soleil consistió en :",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "La manera de vencer la competencia es de tratar de vencerla"
+      },
+      {
+        "key": "b",
+        "texto": "Se apropió muy bien de la tecnología en entretenimiento"
+      },
+      {
+        "key": "c",
+        "texto": "Reconocer que las compañías tendrían que dejar de competir entre sí"
+      },
+      {
+        "key": "d",
+        "texto": "Seleccionó muy bien su nicho de mercado"
+      },
+      {
+        "key": "e",
+        "texto": "a y c son correctas"
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 3,
+    "pregunta": "¿Qué es un océano azul?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Buscaba luchar contra la competencia"
+      },
+      {
+        "key": "b",
+        "texto": "Explorar mercados inexplorados"
+      },
+      {
+        "key": "c",
+        "texto": "A y B son correctas"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 4,
+    "pregunta": "¿Qué caracteriza a las empresas de los Océanos Rojos?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Elegir entre la disyuntiva del valor o costo"
+      },
+      {
+        "key": "b",
+        "texto": "Suelen ser producto de monopolios y oligopolios"
+      },
+      {
+        "key": "c",
+        "texto": "Competir en el espacio existente del mercado"
+      },
+      {
+        "key": "d",
+        "texto": "a y c son correctas"
+      },
+      {
+        "key": "e",
+        "texto": "Todas las anteriores"
+      }
+    ],
+    "respuesta_correcta": "d"
+  },
+  {
+    "id": 5,
+    "pregunta": "¿Cuál es la herramienta a tener en cuenta a la hora de crear una estrategia de océano azul?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Matriz de las cuatro acciones"
+      },
+      {
+        "key": "b",
+        "texto": "Pirámide de Maslow"
+      },
+      {
+        "key": "c",
+        "texto": "Cuadro mando comparativo"
+      },
+      {
+        "key": "d",
+        "texto": "Todos los anteriores"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 6,
+    "pregunta": "¿Cuáles son las características de una estrategia de océano azul?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Tener claridad, precisión y objetividad"
+      },
+      {
+        "key": "b",
+        "texto": "Tener foco, divergencia y un mensaje contundente"
+      },
+      {
+        "key": "c",
+        "texto": "Tener objetividad, foco y transparencia"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 7,
+    "pregunta": "¿Cuáles son las principales características de los océanos azules?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Generan segmentos clones"
+      },
+      {
+        "key": "b",
+        "texto": "Hacer que la competencia pierda toda la importancia"
+      },
+      {
+        "key": "c",
+        "texto": "Romper la disyuntiva de valor o costo"
+      },
+      {
+        "key": "d",
+        "texto": "a y c son correctas"
+      },
+      {
+        "key": "e",
+        "texto": "b y c son correctas"
+      }
+    ],
+    "respuesta_correcta": "e"
+  },
+  {
+    "id": 8,
+    "pregunta": "¿Cómo puede una compañía salirse del océano rojo?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Generar valor a través de la innovación"
+      },
+      {
+        "key": "b",
+        "texto": "No es necesario ya que puede estar en ambos en simultanea"
+      },
+      {
+        "key": "c",
+        "texto": "Atrayendo nuevos clientes ofreciendo un precio más llamativo"
+      },
+      {
+        "key": "d",
+        "texto": "Ofreciendo planes que fidelicen más a los clientes actuales"
+      },
+      {
+        "key": "e",
+        "texto": "a y c son correctas"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 9,
+    "pregunta": "Si se aplica la estrategia de las 4 acciones es un restaurante …",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Reducir los precios con respecto a otros restaurantes"
+      },
+      {
+        "key": "b",
+        "texto": "Reducir los tiempos de entrega de sus pedidos"
+      },
+      {
+        "key": "c",
+        "texto": "Eliminar todo el personal antiguo"
+      },
+      {
+        "key": "d",
+        "texto": "Aumentar sus sucursales a otras ciudades"
+      },
+      {
+        "key": "e",
+        "texto": "Crear opciones diferentes combinando platos"
+      }
+    ],
+    "respuesta_correcta": "e"
+  },
+  {
+    "id": 10,
+    "pregunta": "¿Aplicando la matriz de las estrategias de las 4 acciones en una aerolínea, qué se pretende?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Crear servicios diferentes como evitar esperas en aeropuertos"
+      },
+      {
+        "key": "b",
+        "texto": "Ofrecer cumplimiento en la llegada de los vuelos"
+      },
+      {
+        "key": "c",
+        "texto": "Ofrecer descuentos atractivos en determinadas rutas"
+      },
+      {
+        "key": "d",
+        "texto": "Mejorar los sistemas de entretenimiento del avión"
+      },
+      {
+        "key": "e",
+        "texto": "Apostarle a la seguridad y al mantenimiento"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 11,
+    "pregunta": "¿Los océanos de oportunidades se logran por la incidencia de la innovación tecnológica?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Ni porque es la única forma de lograrlo"
+      },
+      {
+        "key": "b",
+        "texto": "No, La innovación que debe aportar el océano azul es una innovación en valor, aportar más valor a menor costo."
+      },
+      {
+        "key": "c",
+        "texto": "Si, la innovación es esencial en la segmentación del mercado."
+      },
+      {
+        "key": "d",
+        "texto": "Si, La innovación debe ser en creatividad a demás d ellos tecnológico"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 12,
+    "pregunta": "¿Es posible afirmar que los océanos azules y rojos siempre han coexistido en diversas industrias?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "No, solo es posible contar con una de las dos estrategias"
+      },
+      {
+        "key": "b",
+        "texto": "Primero se debe implementar la estrategia del océano azul y luego una estrategia de océano rojo."
+      },
+      {
+        "key": "c",
+        "texto": "No, ya que el océano azul considera competencia."
+      },
+      {
+        "key": "d",
+        "texto": "Si, las dos estrategias pueden coexistir sin limitaciones"
+      }
+    ],
+    "respuesta_correcta": "d"
+  },
+  {
+    "id": 13,
+    "pregunta": "Las seis vías son aplicables a todos los sectores de la industria y llevan a las compañias hacia el corredor de las ideas comercialmente viables para crear océanos azules. Afirmacion.",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadero"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 14,
+    "pregunta": "Estas vías cuestionan los seis supuestos fundamentales sobre los cuales se basan las estrategias de muchas compañias que las mantienen atrapadas en medio de los océanos rojos de la competencia. Afirmacion.",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadero"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 15,
+    "pregunta": "Las alternativas comprenden productos o servicios cuyas funciones y formas son diferentes pero cumplen con el mismo propósito. Afirmacion",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadero"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 16,
+    "pregunta": "¿A qué se refiere grupos estratégicos?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Grupo de compañias que aplican una estrategia similar."
+      },
+      {
+        "key": "b",
+        "texto": "Grupo que planea sus estrategias antes de participar en una competencia."
+      },
+      {
+        "key": "c",
+        "texto": "Todas las anteriores."
+      },
+      {
+        "key": "d",
+        "texto": "Ninguna de las anteriores"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 17,
+    "pregunta": "El segundo principio de la estrategia del océano azul es:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Enfocarse en la compañia para poder buscar los resultados propuestos."
+      },
+      {
+        "key": "b",
+        "texto": "Enfocarse en la perspectiva global y no en las cifras."
+      },
+      {
+        "key": "c",
+        "texto": "A y b"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 18,
+    "pregunta": "¿Para qué es fundamental enfocarse en la perspectiva global y no en las cifras?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Mitigar el sistema"
+      },
+      {
+        "key": "b",
+        "texto": "Mitigar la parte financiera de la compañia"
+      },
+      {
+        "key": "c",
+        "texto": "Mitigar el riesgo de la planeacion."
+      },
+      {
+        "key": "d",
+        "texto": "Todas las anteriores"
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 19,
+    "pregunta": "Los pioneros de una compañia son los negocios que ofrecen valor sin precedentes. Afirmacion",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadero"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 20,
+    "pregunta": "Los emigrantes son aquellos negocios que amplían la curva de la industria puesto que ofrecen más por menos. Afirmación:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadero"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 21,
+    "pregunta": "¿Cuáles son las barreras contra la imitación que se utilizan en las estrategias del océano azul?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "La innovación en valor"
+      },
+      {
+        "key": "b",
+        "texto": "Las industrias"
+      },
+      {
+        "key": "c",
+        "texto": "Las patentes o las licencias legales"
+      },
+      {
+        "key": "d",
+        "texto": "b y c"
+      },
+      {
+        "key": "e",
+        "texto": "a y c xx"
+      }
+    ],
+    "respuesta_correcta": "e"
+  },
+  {
+    "id": 22,
+    "pregunta": "¿Por qué el monopolio natural bloquea la imitación?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Compite con todos los demás autores"
+      },
+      {
+        "key": "b",
+        "texto": "No permite la existencia de otro autor"
+      },
+      {
+        "key": "c",
+        "texto": "Permite que mas autores se involucren"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 23,
+    "pregunta": "¿De qué trata los tres niveles de no clientes?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Están pendientes del mercado para adquirir productos."
+      },
+      {
+        "key": "b",
+        "texto": "Ubicados en mercados alejados del suyo pero pendiente de novedades."
+      },
+      {
+        "key": "c",
+        "texto": "Ubicados en el borde del mercado, rehúsan conscientemente a elegir el mercado de la empresa y ubicados en mercados alejados de la empresa."
+      },
+      {
+        "key": "d",
+        "texto": "Ninguna de las anteriores."
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 24,
+    "pregunta": "¿Cómo se puede realizar una captación de posibles clientes?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Concentrarse en el nivel que más variables tenga y en qué momento este le da el resultado esperado."
+      },
+      {
+        "key": "b",
+        "texto": "Retener los clientes existentes ya que este puede desatar competencia de una industria a otra y también en el tiempo."
+      },
+      {
+        "key": "c",
+        "texto": "Revisar los elementos comunes entre estos."
+      },
+      {
+        "key": "d",
+        "texto": "No enfocarse en un solo nivel sino dirigir su mirada a cada uno de ellos, mirar más allá de la demanda existe y realizar la formulación de las estrategias futura"
+      }
+    ],
+    "respuesta_correcta": "d"
+  },
+  {
+    "id": 25,
+    "pregunta": "Para que las compañías consigan los objetivos deben cuestionar dos prácticas estratégicas convencionales:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Captación y oportunidades"
+      },
+      {
+        "key": "b",
+        "texto": "Clientes existentes"
+      },
+      {
+        "key": "c",
+        "texto": "Segmentación cada vez más fina"
+      },
+      {
+        "key": "d",
+        "texto": "A y b"
+      },
+      {
+        "key": "e",
+        "texto": "B y c"
+      }
+    ],
+    "respuesta_correcta": "e"
+  },
+  {
+    "id": 26,
+    "pregunta": "La secuencia estratégica consiste en extraer y validar las ideas para océanos azules a fin de garantizar la viabilidad comercial de la compañia. Afirmacion:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadera"
+      },
+      {
+        "key": "b",
+        "texto": "Falsa"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 27,
+    "pregunta": "¿Cuándo se reduce el modelo de negocio?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Cuando se tiene claro metas, objetivos y fin."
+      },
+      {
+        "key": "b",
+        "texto": "Cuando se planea y se dirige para ir más allá y se tiene claro cuales no son los posibles clientes que no ayudaran al desarrollo."
+      },
+      {
+        "key": "c",
+        "texto": "Cuando no hay claridad sobre la secuencia estratégica correcta y manera de evaluar los criterios."
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 28,
+    "pregunta": "Se le denomina palancas de la utilidad a unos elementos no comunes presentes en las distintas etapas de la experiencia de los compradores. Afirmacion:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadera"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 29,
+    "pregunta": "La fijación de costos mínimos es el siguiente paso de la secuencia estratégica y está relacionada con la rentabilidad del modelo de negocio. Afirmacion:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadera"
+      },
+      {
+        "key": "b",
+        "texto": "Falsa"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 30,
+    "pregunta": "La estructura de los océanos de oportunidades debe estar en la piedra angular que la identifica:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Eliminar-Crear -Reducir"
+      },
+      {
+        "key": "b",
+        "texto": "Mercado equitativos – competencia – libertad"
+      },
+      {
+        "key": "c",
+        "texto": "Estructura de costos – innovación de valor - Valor compradores"
+      },
+      {
+        "key": "d",
+        "texto": "Costos – Mercados - Competencia"
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 31,
+    "pregunta": "¿Cuáles son las barreras organizacionales?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Percepción, recursos limitados, motivación y política"
+      },
+      {
+        "key": "b",
+        "texto": "Recepción, crear, organizar y equipo"
+      },
+      {
+        "key": "c",
+        "texto": "Todas la anteriores"
+      },
+      {
+        "key": "d",
+        "texto": "Ninguna de las anteriores"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 32,
+    "pregunta": "Saber cómo vencer las barreras organizacionales es fundamental para mitigar el riesgo organizacional y poder llevar a la acción la estrategia del océano azul.  Afirmacion.",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadera"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 33,
+    "pregunta": "¿Qué son las zonas calientes?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Altas ganancias"
+      },
+      {
+        "key": "b",
+        "texto": "Grandes desempeños"
+      },
+      {
+        "key": "c",
+        "texto": "Todas las anteriores"
+      },
+      {
+        "key": "d",
+        "texto": "Ninguna de las anteriores"
+      }
+    ],
+    "respuesta_correcta": "d"
+  },
+  {
+    "id": 34,
+    "pregunta": "¿A qué hace referencia la negociación?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Pactar con los clientes."
+      },
+      {
+        "key": "b",
+        "texto": "Intercambio de recursos sobrantes."
+      },
+      {
+        "key": "c",
+        "texto": "Intercambiar clientes"
+      },
+      {
+        "key": "d",
+        "texto": "Todas las anteriores"
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 35,
+    "pregunta": "¿En la incorporación de la ejecución a la estrategia cuál es la base fundamental en la acción?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Talento humano, recursos financieros y capital"
+      },
+      {
+        "key": "b",
+        "texto": "Tecnología e innovación"
+      },
+      {
+        "key": "c",
+        "texto": "Actitudes y comportamiento humano."
+      }
+    ],
+    "respuesta_correcta": "c"
+  },
+  {
+    "id": 36,
+    "pregunta": "El sexto principio de la estrategia del océano azul se base en construir la confianza y el compromiso entre las filas e inspirar su cooperación voluntaria minimizar el riesgo de desconfianza.",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Verdadero"
+      },
+      {
+        "key": "b",
+        "texto": "Falso"
+      }
+    ],
+    "respuesta_correcta": "a"
+  },
+  {
+    "id": 37,
+    "pregunta": "¿Qué es el proceso equitativo?",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Ser imparcial ante cualquier proceso dentro de la organización."
+      },
+      {
+        "key": "b",
+        "texto": "Es la manifestación de la teoría de la justicia procesal en el campo permite la ejecución de la estrategia."
+      },
+      {
+        "key": "c",
+        "texto": "Es la encargada de la justicia procesal en el campo permite la ejecución de la organización."
+      },
+      {
+        "key": "d",
+        "texto": "Ninguna de las anteriores."
+      }
+    ],
+    "respuesta_correcta": "b"
+  },
+  {
+    "id": 38,
+    "pregunta": "El compromiso la confianza y la cooperación voluntaria no son simplemente actitudes o comportamientos, son capital:",
+    "opciones": [
+      {
+        "key": "a",
+        "texto": "Humano."
+      },
+      {
+        "key": "b",
+        "texto": "Tecnológico."
+      },
+      {
+        "key": "c",
+        "texto": "Comercial"
+      },
+      {
+        "key": "d",
+        "texto": "Intangible."
+      }
+    ],
+    "respuesta_correcta": "d"
+  }
+]

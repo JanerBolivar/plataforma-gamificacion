@@ -20,6 +20,8 @@ const envSchema = z.object({
   ADMIN_EMAILS: z.string().default(''),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   SWAMP_TIME_MINUTES: z.string().default('15').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
+  CIRCO_TIME_MINUTES: z.string().default('30').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
+  CIRCO_QUESTION_TIME_SECONDS: z.string().default('30').transform((val) => parseInt(val, 10)).pipe(z.number().int().positive()),
 });
 
 const _env = envSchema.safeParse(process.env);

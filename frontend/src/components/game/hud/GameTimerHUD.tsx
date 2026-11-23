@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react';
 export interface GameTimerHUDProps {
   timeRemaining: number;
   warningThreshold?: number;
+  label?: string;
   className?: string;
 }
 
@@ -13,6 +14,7 @@ export interface GameTimerHUDProps {
 export const GameTimerHUD: React.FC<GameTimerHUDProps> = ({
   timeRemaining,
   warningThreshold = 60,
+  label,
   className = '',
 }) => {
   const isWarning = timeRemaining < warningThreshold;
@@ -32,6 +34,11 @@ export const GameTimerHUD: React.FC<GameTimerHUDProps> = ({
         <span className="font-mono font-bold text-sm tracking-wider text-slate-100">
           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
         </span>
+        {label && (
+          <span className="text-xs font-medium text-slate-300 border-l border-slate-700 pl-2 max-w-xs truncate">
+            {label}
+          </span>
+        )}
       </div>
     </div>
   );

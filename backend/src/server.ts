@@ -4,6 +4,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { SwampRoom } from './game/SwampRoom.js';
+import { CircoRoom } from './game/CircoRoom.js';
 
 const app = createApp();
 const PORT = env.PORT;
@@ -16,8 +17,9 @@ const gameServer = new Server({
   }),
 });
 
-// Registrar sala del pantano particionada por matchId
+// Registrar salas de juego particionadas por matchId
 gameServer.define('swamp_room', SwampRoom).filterBy(['matchId']);
+gameServer.define('circo_room', CircoRoom).filterBy(['matchId']);
 
 // Iniciar el servidor mediante Colyseus para enlazar rutas de matchmaking y servidor HTTP
 gameServer

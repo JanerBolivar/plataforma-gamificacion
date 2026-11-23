@@ -5,7 +5,8 @@ import { CollectiblesManager } from './CollectiblesManager';
 import { MapEditor } from './MapEditor';
 import { AudioManager } from './AudioManager';
 import { SoundManager } from './SoundManager';
-import { RemotePlayerAvatar, RemotePlayerData } from './RemotePlayerAvatar';
+import { RemotePlayerData } from './RemotePlayerAvatar';
+import { RemotePlayersManager } from './RemotePlayersManager';
 import { MatchCollectibleDto } from '../types/match';
 
 /**
@@ -23,7 +24,7 @@ export class SwampScene {
   private mapEditor: MapEditor | null = null;
   private audioManager: AudioManager;
   public soundManager: SoundManager;
-  private remoteAvatars: Map<string, RemotePlayerAvatar> = new Map();
+  private remotePlayersManager: RemotePlayersManager;
 
   private lastTime: number = 0;
   private startTime: number = 0;
@@ -78,6 +79,7 @@ export class SwampScene {
     this.soundManager = new SoundManager();
     this.collectiblesManager = new CollectiblesManager();
     this.worldBuilder = new WorldBuilder(this.scene, this.collectiblesManager);
+    this.remotePlayersManager = new RemotePlayersManager(this.scene);
     this.playerController = new PlayerController(this.camera, this.renderer.domElement);
     this.playerController.setAudioManager(this.audioManager);
 
@@ -165,9 +167,7 @@ export class SwampScene {
     this.collectiblesManager.update(delta);
 
     // Actualizar interpolacion y animaciones de avatares remotos
-    this.remoteAvatars.forEach((avatar) => {
-      avatar.update(delta);
-    });
+    this.remotePlayersManager.update(delta);
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -176,23 +176,14 @@ export class SwampScene {
    * Agrega el avatar tridimensional de un jugador remoto conectado a la sala.
    */
   public addRemotePlayer(sessionId: string, data: RemotePlayerData): void {
-    if (this.remoteAvatars.has(sessionId)) {
-      this.removeRemotePlayer(sessionId);
-    }
-    const avatar = new RemotePlayerAvatar(data);
-    this.scene.add(avatar.group);
-    this.remoteAvatars.set(sessionId, avatar);
+    this.remotePlayersManager.addPlayer(sessionId, data);
   }
 
   /**
    * Remueve y destruye el avatar de un jugador que abandono la partida.
    */
   public removeRemotePlayer(sessionId: string): void {
-    const avatar = this.remoteAvatars.get(sessionId);
-    if (avatar) {
-      avatar.dispose(this.scene);
-      this.remoteAvatars.delete(sessionId);
-    }
+    this.remotePlayersManager.removePlayer(sessionId);
   }
 
   /**
@@ -202,10 +193,7 @@ export class SwampScene {
     sessionId: string,
     data: { x: number; y: number; z: number; ry: number; animState?: string }
   ): void {
-    const avatar = this.remoteAvatars.get(sessionId);
-    if (avatar) {
-      avatar.updateData(data);
-    }
+    this.remotePlayersManager.updatePlayer(sessionId, data);
   }
 
   public getSoundManager(): SoundManager {
@@ -274,10 +262,7 @@ export class SwampScene {
       this.mapEditor = null;
     }
 
-    this.remoteAvatars.forEach((avatar) => {
-      avatar.dispose(this.scene);
-    });
-    this.remoteAvatars.clear();
+    this.remotePlayersManager.dispose();
 
     this.playerController.dispose();
     this.worldBuilder.dispose();

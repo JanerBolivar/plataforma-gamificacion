@@ -502,6 +502,19 @@ export class WorldBuilder {
     }
     mergeContainer.updateMatrixWorld(true);
 
+    // Filtrar objetos desactivados (visible = false) para que no formen parte de las colisiones
+    // (Preserva objetos como COLLIDER_Limites que tienen visible = true con material invisible)
+    const hiddenObjects: THREE.Object3D[] = [];
+    mergeContainer.traverse((c) => {
+      if (!c.visible) {
+        hiddenObjects.push(c);
+      }
+    });
+    for (const hidden of hiddenObjects) {
+      hidden.parent?.remove(hidden);
+    }
+    mergeContainer.updateMatrixWorld(true);
+
     try {
       const generator = new StaticGeometryGenerator(mergeContainer);
       generator.attributes = ['position']; // Optimizacion: unicamente vertices para colision

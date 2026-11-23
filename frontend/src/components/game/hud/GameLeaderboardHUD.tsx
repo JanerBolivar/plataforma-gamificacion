@@ -104,7 +104,20 @@ export const GameLeaderboardHUD: React.FC<GameLeaderboardHUDProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {team.opportunities !== undefined && team.opportunities > 0 && (
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: Math.min(team.opportunities, 4) }).map((_, opIdx) => (
+                          <img
+                            key={opIdx}
+                            src={`/models/circo/OP${opIdx + 1}.png`}
+                            alt={`Oportunidad ${opIdx + 1}`}
+                            className="w-[18px] h-[18px] object-contain drop-shadow"
+                            title={`Oportunidad ${opIdx + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                     {team.cardsCount !== undefined && (
                       <span className="text-[11px] text-slate-400 font-mono">
                         {team.cardsCount}/4

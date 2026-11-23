@@ -234,10 +234,12 @@ export const MapEditorPanel: React.FC<MapEditorPanelProps> = ({
                   />
                 </div>
                 <div>
-                  <span className="text-[9px] text-slate-500 font-mono">Rot Y</span>
+                  <span className="text-[9px] text-slate-500 font-mono">
+                    Rot Y ({(((selectedObjectDef.rotation[1] * 180) / Math.PI + 360) % 360).toFixed(0)}°)
+                  </span>
                   <Input
                     type="number"
-                    step="0.1"
+                    step="0.05"
                     value={selectedObjectDef.rotation[1]}
                     onChange={(e) => onManualRotChange('y', parseFloat(e.target.value) || 0)}
                     className="h-7 text-xs bg-slate-950 border-slate-700 px-1.5 font-mono"
