@@ -28,16 +28,16 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-4000}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres_password@db:5432/gamificacion_db?schema=public}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_password}@db:5432/${POSTGRES_DB:-gamificacion_db}?schema=public}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID}
-      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
       MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-common}
       MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-http://localhost:4000/api/auth/microsoft/callback}
       JWT_SECRET: ${JWT_SECRET:-jwt_secret_production_key}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       SWAMP_TIME_MINUTES: ${SWAMP_TIME_MINUTES:-15}
       CIRCO_TIME_MINUTES: ${CIRCO_TIME_MINUTES:-30}
       CIRCO_QUESTION_TIME_SECONDS: ${CIRCO_QUESTION_TIME_SECONDS:-30}

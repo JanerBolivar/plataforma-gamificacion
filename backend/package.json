@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "start:prod": "npx prisma migrate deploy && node dist/server.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
+    "prisma": "^5.22.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -35,7 +37,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.9",
     "@types/node": "^20.17.6",
-    "prisma": "^5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }

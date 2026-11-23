@@ -28,7 +28,9 @@ RUN npm ci --only=production
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/data ./dist/data
+COPY --from=builder /app/src/data ./src/data
 
 EXPOSE 4000
 
-CMD ["node", "dist/server.js"]
+CMD ["npm", "run", "start:prod"]
