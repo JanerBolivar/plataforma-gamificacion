@@ -1,7 +1,10 @@
 # Etapa de construccion y compilacion
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
+
+# Instalar dependencias del sistema necesarias para Prisma en Alpine Linux
+RUN apk add --no-cache openssl libc6-compat
 
 COPY package*.json ./
 COPY prisma ./prisma/
@@ -15,11 +18,14 @@ RUN npx prisma generate
 RUN npm run build
 
 # Etapa de ejecucion en produccion
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+# Instalar OpenSSL y libc6-compat requeridos por el schema engine de Prisma en ejecucion
+RUN apk add --no-cache openssl libc6-compat
 
 COPY package*.json ./
 COPY prisma ./prisma/
