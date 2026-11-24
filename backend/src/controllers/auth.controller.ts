@@ -35,11 +35,13 @@ export class AuthController {
     try {
       const jwtToken = await AuthService.handleMicrosoftCallback(code);
 
+      const isHttps = env.FRONTEND_URL.startsWith('https://');
+
       // Fijar cookie de sesion segura HttpOnly
       res.cookie('auth_token', jwtToken, {
         httpOnly: true,
-        secure: env.NODE_ENV === 'production',
-        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: isHttps,
+        sameSite: isHttps ? 'none' : 'lax',
         maxAge: 8 * 60 * 60 * 1000, // 8 horas en milisegundos
         path: '/',
       });
@@ -127,10 +129,11 @@ export class AuthController {
    * Limpia la cookie de sesion para cerrar la sesion del usuario de forma segura.
    */
   public static logout(_req: Request, res: Response): void {
+    const isHttps = env.FRONTEND_URL.startsWith('https://');
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isHttps,
+      sameSite: isHttps ? 'none' : 'lax',
       path: '/',
     });
     res.status(200).json({

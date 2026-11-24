@@ -7,8 +7,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
       POSTGRES_DB: ${POSTGRES_DB:-gamificacion_db}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    expose:
+      - "5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
@@ -27,14 +27,14 @@ services:
     restart: always
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-4000}
+      PORT: 4000
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_password}@db:5432/${POSTGRES_DB:-gamificacion_db}?schema=public}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://${FRONTEND_DOMAIN:-localhost}}
+      FRONTEND_URL: ${FRONTEND_URL:-http://${FRONTEND_DOMAIN:-localhost}}
       MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
       MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
       MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-common}
-      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-http://localhost:4000/api/auth/microsoft/callback}
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-http://${BACKEND_DOMAIN:-api.localhost}/api/auth/microsoft/callback}
       JWT_SECRET: ${JWT_SECRET:-jwt_secret_production_key}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
@@ -43,32 +43,52 @@ services:
       CIRCO_QUESTION_TIME_SECONDS: ${CIRCO_QUESTION_TIME_SECONDS:-30}
       CIRCO_GUESS_IT_TIME_SECONDS: ${CIRCO_GUESS_IT_TIME_SECONDS:-90}
       CIRCO_SHARK_LETTER_TIME_SECONDS: ${CIRCO_SHARK_LETTER_TIME_SECONDS:-90}
-    ports:
-      - "${PORT:-4000}:${PORT:-4000}"
+    expose:
+      - "4000"
     depends_on:
       db:
         condition: service_healthy
     networks:
       - gamificacion-net
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      # Enrutamiento basado en Host (Dominio Dokploy)
+      - "traefik.http.routers.gamificacion-backend.rule=Host(`${BACKEND_DOMAIN:-api.localhost}`)"
+      - "traefik.http.routers.gamificacion-backend.entrypoints=web,websecure"
+      - "traefik.http.services.gamificacion-backend.loadbalancer.server.port=4000"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+        VITE_API_URL: ${VITE_API_URL:-http://${BACKEND_DOMAIN:-api.localhost}}
     container_name: gamificacion_frontend
     restart: always
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
       - gamificacion-net
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      # Enrutamiento basado en Host (Dominio Dokploy)
+      - "traefik.http.routers.gamificacion-frontend.rule=Host(`${FRONTEND_DOMAIN:-app.localhost}`)"
+      - "traefik.http.routers.gamificacion-frontend.entrypoints=web,websecure"
+      - "traefik.http.services.gamificacion-frontend.loadbalancer.server.port=80"
 
 volumes:
   pg_data:
 
 networks:
+  # Red externa compartida administrada por Dokploy donde opera el proxy inverso Traefik
+  dokploy-network:
+    external: true
+  # Red interna aislada para la comunicacion backend <-> base de datos
   gamificacion-net:
     driver: bridge

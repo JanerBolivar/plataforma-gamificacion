@@ -13,6 +13,9 @@ import { errorHandler } from './middlewares/error.middleware.js';
 export const createApp = (): Application => {
   const app = express();
 
+  // Habilitar deteccion de proxy inverso (Traefik / Dokploy) para IP y protocolo real
+  app.set('trust proxy', 1);
+
   app.use(helmet());
   app.use(
     cors({
